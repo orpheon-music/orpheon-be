@@ -1,0 +1,7 @@
+{
+  "python.languageServer": "Pylance",
+  "editor.defaultFormatter": "charliermarsh.ruff",
+  "search.exclude": {
+    "**/.venv": true
+  }
+}
