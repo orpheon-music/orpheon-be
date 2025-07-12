@@ -1,10 +1,14 @@
+import asyncio
+import os
 from io import BytesIO
 from typing import Annotated
 
 import uvicorn
-from fastapi import Depends, FastAPI, File, UploadFile, status
+import yt_dlp
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel
 
 from app.config.database import AsyncSessionLocal, engine
 from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
@@ -102,6 +106,73 @@ async def upload_file(file: Annotated[UploadFile, File()]):
     file_name = file.filename or "uploaded_file"
     bucket = "ahargunyllib-s3-testing"
     file_url = await s3_service.upload_file(file_content, file_name, bucket)
+    return {"file_url": file_url}
+
+
+class DownloadYTRequest(BaseModel):
+    url: str
+
+
+# Blocking function to run in a thread
+def download_audio(url: str, output_dir: str = "/tmp") -> str:
+    params = {  # type: ignore
+        "format": "bestaudio/best",
+        "noplaylist": True,
+        "outtmpl": f"{output_dir}/%(title)s-%(id)s.%(ext)s",
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            }
+        ],
+        "quiet": True,
+        "no_warnings": True,
+    }
+
+    with yt_dlp.YoutubeDL(params) as ydl:  # type: ignore
+        info = ydl.extract_info(url, download=True)
+        # Get the actual file path of the post-processed file
+        file_path = info["requested_downloads"][0]["filepath"]  # type: ignore
+        return file_path  # type: ignore
+
+
+@app.post(
+    "/api/v1/download-yt-audio",
+    tags=["Files"],
+    summary="Download YouTube Audio",
+    status_code=status.HTTP_201_CREATED,
+)
+async def download_youtube_audio(
+    req: DownloadYTRequest,
+):
+    url = req.url.strip()
+    print(f"Received YouTube URL: {url}")
+
+    try:
+        # Run blocking yt_dlp in thread pool
+        file_path = await asyncio.to_thread(download_audio, url)
+    except Exception as e:
+        print(f"Error downloading audio: {e}")
+        raise HTTPException(
+            status_code=400, detail="Failed to download audio from YouTube."
+        ) from e
+
+    # Upload to S3
+    bucket = "ahargunyllib-s3-testing"
+    try:
+        with open(file_path, "rb") as f:
+            file_content = BytesIO(f.read())
+
+        file_name = os.path.basename(file_path)
+        file_url = await s3_service.upload_file(file_content, file_name, bucket)
+    finally:
+        # Always clean up
+        try:
+            os.remove(file_path)
+        except Exception as cleanup_error:
+            print(f"Warning: failed to delete local file {file_path}: {cleanup_error}")
+
     return {"file_url": file_url}
 
 
