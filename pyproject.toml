@@ -10,11 +10,13 @@ authors = [
 dependencies = [
     "alembic>=1.16.2",
     "asyncpg>=0.30.0",
+    "bcrypt>=4.3.0",
     "fastapi>=0.115.14",
-    "pydantic>=2.11.7",
+    "pydantic[email]>=2.11.7",
     "pydantic-settings>=2.10.1",
     "sqlalchemy>=2.0.41",
     "uvicorn[standard]>=0.35.0",
+    "pyjwt>=2.10.1",
 ]
 
 [dependency-groups]
