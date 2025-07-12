@@ -1,5 +1,4 @@
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config.settings import get_settings
 
@@ -12,22 +11,16 @@ engine = create_async_engine(
     max_overflow=settings.DB_MAX_OVERFLOW,
 )
 
-AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)  # type: ignore
+AsyncSessionLocal = async_sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
-async def get_db():  # type: ignore
+async def get_db():
     """
     Get a database session.
     This function is used to create a new database session.
     It is used in the dependency injection system of FastAPI.
     """
-    async with AsyncSessionLocal() as session:  # type: ignore
+    async with AsyncSessionLocal() as session:
         yield session
-
-
-def get_db_conn():
-    """
-    Get a DB connection.
-    This function is used to create a new DB connection.
-    """
-    return engine.connect()
