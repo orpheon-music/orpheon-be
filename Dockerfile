@@ -6,13 +6,11 @@ WORKDIR /app
 
 COPY uv.lock pyproject.toml ./
 
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project
+RUN uv sync --frozen --no-install-project
 
 COPY . .
 
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen
+RUN uv sync --frozen
 
 FROM python:3.13-slim AS production
 

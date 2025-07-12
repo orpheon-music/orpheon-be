@@ -1,11 +1,50 @@
 services:
+  watchtower:
+    image: containrrr/watchtower
+    command:
+      - "--label-enable"
+      - "--interval"
+      - "30"
+      - "--rolling-restart"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
   server:
     image: ahargunyllib/orpheon-be:latest
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "8000:8000"
     networks:
       - network
     restart: on-failure
+    depends_on:
+      - db:
+          condition: service_healthy
+  db:
+    image: postgres:16.1-alpine
+    container_name: postgresdb
+    ports:
+      - 5434:5432
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME}
+      - PORT=${DB_PORT}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    networks:
+      - network
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USER} -d ${DB_NAME}'"]
+      start_period: 10s
+      start_interval: 5s
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres:
+    driver: local
 
 networks:
   network:
