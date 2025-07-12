@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "your_jwt_secret_key"
     JWT_EXPIRES_IN: int = 3600
 
+    # AWS S3
+    AWS_S3_ACCESS_KEY: str = "your_aws_access_key"
+    AWS_S3_SECRET_ACCESS_KEY: str = "your_aws_secret_access_key"
+    AWS_S3_REGION: str = "us-west-2"
+    AWS_S3_URL: str = "https://s3.amazonaws.com"
+
     class Config:
         env_file = ".env"
 

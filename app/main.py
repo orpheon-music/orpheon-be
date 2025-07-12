@@ -1,10 +1,14 @@
+from io import BytesIO
+from typing import Annotated
+
 import uvicorn
-from fastapi import Depends, FastAPI, status
+from fastapi import Depends, FastAPI, File, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config.database import AsyncSessionLocal, engine
 from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
+from app.infra.external_services.s3_service import S3Service
 from app.repository.user_repository import UserRepository
 from app.service.auth_service import AuthService
 
@@ -21,6 +25,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+s3_service = S3Service()
 
 user_repo = UserRepository(
     engine=engine,
@@ -79,6 +85,24 @@ async def check_session(
     current_user: UserResponse = Depends(get_current_user),
 ):
     return current_user
+
+
+@app.post(
+    "/api/v1/files/upload",
+    tags=["Files"],
+    summary="Upload File",
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_file(file: Annotated[UploadFile, File()]):
+    data = await file.read()
+    print(f"Received file: {file.filename}, size: {len(data)} bytes")
+    file_content = BytesIO(data)
+    if not file_content:
+        return {"error": "No file content provided"}
+    file_name = file.filename or "uploaded_file"
+    bucket = "ahargunyllib-s3-testing"
+    file_url = await s3_service.upload_file(file_content, file_name, bucket)
+    return {"file_url": file_url}
 
 
 def main():
