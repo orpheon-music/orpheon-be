@@ -18,8 +18,8 @@ services:
       - network
     restart: on-failure
     depends_on:
-      - db:
-          condition: service_healthy
+      db:
+        condition: service_healthy
   db:
     image: postgres:16.1-alpine
     container_name: postgresdb
