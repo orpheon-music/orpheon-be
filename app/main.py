@@ -22,6 +22,21 @@ def read_root():
     return {"message": "Welcome to Orpheon BE!"}
 
 
+@app.post("/api/v1/auth/register", tags=["Auth"], summary="User Registration")
+def register_user():
+    return {"message": "User registration endpoint"}
+
+
+@app.post("/api/v1/auth/login", tags=["Auth"], summary="User Login")
+def login_user():
+    return {"message": "User login endpoint"}
+
+
+@app.get("/api/v1/auth/session", tags=["Auth"], summary="Check User Session")
+def check_session():
+    return {"message": "User session check endpoint"}
+
+
 def main():
     uvicorn.run(
         "app.main:app",
