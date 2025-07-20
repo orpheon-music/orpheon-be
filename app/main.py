@@ -138,9 +138,9 @@ async def get_audio_processing_by_id(
         audio_processing_id=audio_processing_id,
     )
 
-    audio_processing = await audio_processing_svc.get_audio_processing_by_id(query)
+    res = await audio_processing_svc.get_audio_processing_by_id(query)
 
-    return GetAudioProcessingByIdResponse(audio_processing=audio_processing)
+    return res
 
 
 @app.post(
