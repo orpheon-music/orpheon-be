@@ -1,7 +1,7 @@
 import asyncio
 import os
 from io import BytesIO
-from typing import Annotated
+from typing import Annotated, Literal
 
 import uvicorn
 import yt_dlp
@@ -16,9 +16,12 @@ from app.dto.audio_processing_dto import (
     CreateAudioProcessingResponse,
     GetAudioProcessingsQuery,
     GetAudioProcessingsResponse,
+    UpdateAudioProcessingQuery,
+    UpdateAudioProcessingRequest,
 )
 from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
 from app.infra.external_services.s3_service import S3Service
+from app.repository.audio_processing_repository import AudioProcessingRepository
 from app.repository.user_repository import UserRepository
 from app.service.audio_processing_service import AudioProcessingService
 from app.service.auth_service import AuthService
@@ -43,9 +46,15 @@ user_repo = UserRepository(
     engine=engine,
     async_session_factory=AsyncSessionLocal,
 )
+audio_processing_repo = AudioProcessingRepository(
+    engine=engine,
+    async_session_factory=AsyncSessionLocal,
+)
 
 auth_svc = AuthService(user_repository=user_repo)
-audio_processing_svc = AudioProcessingService(user_repository=user_repo)
+audio_processing_svc = AudioProcessingService(
+    audio_processing_repository=audio_processing_repo
+)
 
 security = HTTPBearer(
     scheme_name="Bearer",
@@ -132,7 +141,35 @@ async def create_audio_processing(
         user_id=current_user.id,
     )
 
-    return audio_processing_svc.process_audio(req)
+    return await audio_processing_svc.process_audio(req)
+
+
+@app.put(
+    "/api/v1/audio-processing/{audio_processing_id}",
+    tags=["Audio Processing"],
+    summary="Update Audio Processing",
+)
+async def update_audio_processing(
+    audio_processing_id: str,
+    manual_file: Annotated[UploadFile, File()],
+    type: Annotated[Literal["standard", "dynamic", "smooth"], File()],
+    _current_user: UserResponse = Depends(get_current_user),
+):
+    req = UpdateAudioProcessingRequest(
+        manual_file=manual_file,
+        type=type,
+    )
+
+    query = UpdateAudioProcessingQuery(
+        audio_processing_id=audio_processing_id,
+    )
+
+    await audio_processing_svc.update_audio_processing(
+        req=req,
+        query=query,
+    )
+
+    return
 
 
 @app.post(

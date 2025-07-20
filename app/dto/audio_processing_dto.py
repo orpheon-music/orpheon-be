@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import UploadFile
@@ -33,6 +33,15 @@ class CreateAudioProcessingRequest(BaseModel):
 
 class CreateAudioProcessingResponse(BaseModel):
     audio_processing: AudioProcessingResponse
+
+
+class UpdateAudioProcessingQuery(BaseModel):
+    audio_processing_id: UUID
+
+
+class UpdateAudioProcessingRequest(BaseModel):
+    manual_file: Annotated[UploadFile, File()]
+    type: Literal["standard", "dynamic", "smooth"]
 
 
 class GetAudioProcessingsQuery(BaseModel):
