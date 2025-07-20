@@ -40,8 +40,8 @@ class UpdateAudioProcessingQuery(BaseModel):
 
 
 class UpdateAudioProcessingRequest(BaseModel):
-    manual_file: Annotated[UploadFile, File()]
-    type: Literal["standard", "dynamic", "smooth"]
+  manual_file: Annotated[UploadFile | None, File()] = None
+  type: Literal["standard", "dynamic", "smooth"] | None = None
 
 
 class GetAudioProcessingsQuery(BaseModel):
