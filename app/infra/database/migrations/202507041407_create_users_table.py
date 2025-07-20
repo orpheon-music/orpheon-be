@@ -22,7 +22,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     alembic.op.create_table(
         "users",
-        sqlalchemy.Column("id", sqlalchemy.UUID, primary_key=True, nullable=False),
+        sqlalchemy.Column("id", sqlalchemy.UUID, primary_key=True, nullable=False), # type: ignore
         sqlalchemy.Column("name", sqlalchemy.VARCHAR(255), nullable=False),
         sqlalchemy.Column(
             "email", sqlalchemy.VARCHAR(255), unique=True, nullable=False
