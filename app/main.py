@@ -11,9 +11,16 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
 from app.config.database import AsyncSessionLocal, engine
+from app.dto.audio_processing_dto import (
+    CreateAudioProcessingRequest,
+    CreateAudioProcessingResponse,
+    GetAudioProcessingsQuery,
+    GetAudioProcessingsResponse,
+)
 from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
 from app.infra.external_services.s3_service import S3Service
 from app.repository.user_repository import UserRepository
+from app.service.audio_processing_service import AudioProcessingService
 from app.service.auth_service import AuthService
 
 app = FastAPI(
@@ -38,6 +45,7 @@ user_repo = UserRepository(
 )
 
 auth_svc = AuthService(user_repository=user_repo)
+audio_processing_svc = AudioProcessingService(user_repository=user_repo)
 
 security = HTTPBearer(
     scheme_name="Bearer",
@@ -89,6 +97,42 @@ async def check_session(
     current_user: UserResponse = Depends(get_current_user),
 ):
     return current_user
+
+
+@app.get(
+    "/api/v1/audio-processing/library",
+    tags=["Audio Processing"],
+    summary="Get Audio Processing Library",
+    response_model=GetAudioProcessingsResponse,
+)
+async def get_audio_processing_library(
+    query: Annotated[GetAudioProcessingsQuery, Depends()],
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """Fetch audio processing library with pagination."""
+    return await audio_processing_svc.get_library(query, current_user.id)
+
+
+@app.post(
+    "/api/v1/audio-processing",
+    tags=["Audio Processing"],
+    summary="Create Audio Processing",
+    response_model=CreateAudioProcessingResponse,
+)
+async def create_audio_processing(
+    voice_file: Annotated[UploadFile, File()],
+    instrument_file: Annotated[UploadFile, File()],
+    reference_url: Annotated[str, File()],
+    current_user: UserResponse = Depends(get_current_user),
+):
+    req = CreateAudioProcessingRequest(
+        voice_file=voice_file,
+        instrument_file=instrument_file,
+        reference_url=reference_url,
+        user_id=current_user.id,
+    )
+
+    return audio_processing_svc.process_audio(req)
 
 
 @app.post(
