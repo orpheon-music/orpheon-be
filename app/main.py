@@ -172,10 +172,15 @@ async def create_audio_processing(
 )
 async def update_audio_processing(
     audio_processing_id: str,
-    manual_file: Annotated[UploadFile, File()],
-    type: Annotated[Literal["standard", "dynamic", "smooth"], File()],
+    manual_file: Annotated[UploadFile | None, File()] = None,
+    type: Annotated[Literal["standard", "dynamic", "smooth"] | None, File()] = None,
     _current_user: UserResponse = Depends(get_current_user),
 ):
+    if not manual_file and not type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either manual_file or type must be provided.",
+        )
     req = UpdateAudioProcessingRequest(
         manual_file=manual_file,
         type=type,
