@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, DateTime, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -12,5 +12,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)
-    created_at = Column(Integer, nullable=False, default=0)
-    updated_at = Column(Integer, nullable=False, default=0, onupdate=0)
+    created_at = Column(DateTime, server_default="now()", nullable=False)
+    updated_at = Column(
+        DateTime, server_default="now()", onupdate="now()", nullable=False
+    )
