@@ -14,6 +14,8 @@ from app.config.database import AsyncSessionLocal, engine
 from app.dto.audio_processing_dto import (
     CreateAudioProcessingRequest,
     CreateAudioProcessingResponse,
+    GetAudioProcessingByIdQuery,
+    GetAudioProcessingByIdResponse,
     GetAudioProcessingsQuery,
     GetAudioProcessingsResponse,
     UpdateAudioProcessingQuery,
@@ -120,6 +122,25 @@ async def get_audio_processing_library(
 ):
     """Fetch audio processing library with pagination."""
     return await audio_processing_svc.get_library(query, current_user.id)
+
+
+@app.get(
+    "/api/v1/audio-processing/{audio_processing_id}",
+    tags=["Audio Processing"],
+    summary="Get Audio Processing by ID",
+    response_model=GetAudioProcessingByIdResponse,
+)
+async def get_audio_processing_by_id(
+    audio_processing_id: str,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    query = GetAudioProcessingByIdQuery(
+        audio_processing_id=audio_processing_id,
+    )
+
+    audio_processing = await audio_processing_svc.get_audio_processing_by_id(query)
+
+    return GetAudioProcessingByIdResponse(audio_processing=audio_processing)
 
 
 @app.post(

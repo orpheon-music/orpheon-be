@@ -1,10 +1,15 @@
 import uuid
+from datetime import datetime
 from uuid import uuid5
+
+from fastapi import HTTPException, status
 
 from app.dto.audio_processing_dto import (
     AudioProcessingResponse,
     CreateAudioProcessingRequest,
     CreateAudioProcessingResponse,
+    GetAudioProcessingByIdQuery,
+    GetAudioProcessingByIdResponse,
     GetAudioProcessingsMeta,
     GetAudioProcessingsQuery,
     GetAudioProcessingsResponse,
@@ -23,17 +28,22 @@ class AudioProcessingService:
     async def process_audio(
         self, req: CreateAudioProcessingRequest
     ) -> CreateAudioProcessingResponse:
-        """Process audio files and return response"""
+        timestamp = datetime.now().isoformat()
 
         # Create UUID
         id = uuid5(
-            namespace=uuid.NAMESPACE_DNS, name=req.voice_file.filename or "audio"
+            namespace=uuid.NAMESPACE_DNS,
+            name=req.voice_file.filename or "audio" + timestamp,
         )
 
         name = req.voice_file.filename or "audio"
         size = req.voice_file.size or 0
         duration = 0  # Placeholder, actual duration should be calculated
-        format = req.voice_file.filename.split(".")[-1] if req.voice_file.filename else "unknown"
+        format = (
+            req.voice_file.filename.split(".")[-1]
+            if req.voice_file.filename
+            else "unknown"
+        )
         bitrate = 128  # Placeholder, actual bitrate should be calculated
 
         audio_processing = AudioProcessing(
@@ -149,6 +159,36 @@ class AudioProcessingService:
             audio_processings=audio_processings,
             meta=meta,
         )
+
+    async def get_audio_processing_by_id(
+        self, query: GetAudioProcessingByIdQuery
+    ) -> GetAudioProcessingByIdResponse:
+        """Get audio processing by ID"""
+        audio_processing = (
+            await self.audio_processing_repository.get_audio_processing_by_id(
+                audio_processing_id=query.audio_processing_id
+            )
+        )
+        if not audio_processing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Audio processing not found",
+            )
+
+        audio_processing = AudioProcessingResponse(
+            id=audio_processing.id,
+            user_id=audio_processing.user_id,
+            name=audio_processing.name,
+            size=audio_processing.size,
+            duration=audio_processing.duration,
+            format=audio_processing.format,
+            bitrate=audio_processing.bitrate,
+            standard_audio_url=audio_processing.standard_audio_url,
+            dynamic_audio_url=audio_processing.dynamic_audio_url,
+            smooth_audio_url=audio_processing.smooth_audio_url,
+        )
+
+        return GetAudioProcessingByIdResponse(audio_processing=audio_processing)
 
     async def update_audio_processing(
         self, query: UpdateAudioProcessingQuery, req: UpdateAudioProcessingRequest

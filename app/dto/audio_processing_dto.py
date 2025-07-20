@@ -55,3 +55,8 @@ class GetAudioProcessingsMeta(BaseModel):
 class GetAudioProcessingsResponse(BaseModel):
     audio_processings: list[AudioProcessingResponse]
     meta: GetAudioProcessingsMeta
+
+class GetAudioProcessingByIdQuery(BaseModel):
+    audio_processing_id: UUID
+class GetAudioProcessingByIdResponse(BaseModel):
+    audio_processing: AudioProcessingResponse
