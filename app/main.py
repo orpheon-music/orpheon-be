@@ -55,7 +55,7 @@ audio_processing_repo = AudioProcessingRepository(
 
 auth_svc = AuthService(user_repository=user_repo)
 audio_processing_svc = AudioProcessingService(
-    audio_processing_repository=audio_processing_repo
+    audio_processing_repository=audio_processing_repo, s3_client=s3_service
 )
 
 security = HTTPBearer(

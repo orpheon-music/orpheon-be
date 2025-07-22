@@ -32,3 +32,12 @@ class S3Service:
             ExtraArgs={"ACL": "public-read"},
         )
         return f"{settings.AWS_S3_URL}/{bucket}/{file_name}"
+
+    async def get_presigned_url(
+        self, bucket: str, file_name: str, expiration: int = 3600
+    ) -> str:
+        return self.client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket, "Key": file_name},
+            ExpiresIn=expiration,
+        )
