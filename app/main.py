@@ -8,7 +8,7 @@ import yt_dlp
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
+from pydantic import UUID5, BaseModel
 
 from app.config.database import AsyncSessionLocal, engine
 from app.dto.audio_processing_dto import (
@@ -131,8 +131,8 @@ async def get_audio_processing_library(
     response_model=GetAudioProcessingByIdResponse,
 )
 async def get_audio_processing_by_id(
-    audio_processing_id: str,
-    current_user: UserResponse = Depends(get_current_user),
+    audio_processing_id: UUID5,
+    _current_user: UserResponse = Depends(get_current_user),
 ):
     query = GetAudioProcessingByIdQuery(
         audio_processing_id=audio_processing_id,
@@ -171,7 +171,7 @@ async def create_audio_processing(
     summary="Update Audio Processing",
 )
 async def update_audio_processing(
-    audio_processing_id: str,
+    audio_processing_id: UUID5,
     manual_file: Annotated[UploadFile | None, File()] = None,
     type: Annotated[Literal["standard", "dynamic", "smooth"] | None, File()] = None,
     _current_user: UserResponse = Depends(get_current_user),

@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     AWS_S3_REGION: str = "us-west-2"
     AWS_S3_URL: str = "https://s3.amazonaws.com"
 
+    # Redis
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+
     class Config:
         env_file = ".env"
 
