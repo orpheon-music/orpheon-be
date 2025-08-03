@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from app.model.user_model import User
@@ -52,3 +53,20 @@ class AudioProcessing:
         self.created_at = created_at
         self.updated_at = updated_at
         self.user = user
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "user_id": str(self.user_id),
+            "name": self.name,
+            "size": self.size,
+            "duration": self.duration,
+            "format": self.format,
+            "bitrate": self.bitrate,
+            "standard_audio_url": self.standard_audio_url,
+            "dynamic_audio_url": self.dynamic_audio_url,
+            "smooth_audio_url": self.smooth_audio_url,
+            "manual_audio_url": self.manual_audio_url,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }

@@ -97,9 +97,7 @@ class AudioProcessingRepository:
         # Cache the audio processings
         await self.redis.set(
             cache_key,
-            json.dumps(
-                [audio_processing.__dict__ for audio_processing in audio_processings]
-            ),
+            json.dumps([ap.to_dict() for ap in audio_processings]),
             ex=3600,  # Cache for 1 hour
         )
 
@@ -162,7 +160,7 @@ class AudioProcessingRepository:
         # Cache the audio processing
         await self.redis.set(
             cache_key,
-            json.dumps(audio_processing.__dict__),
+            json.dumps(audio_processing.to_dict()),
             ex=3600,  # Cache for 1 hour
         )
 
@@ -241,7 +239,7 @@ class AudioProcessingRepository:
         cache_key = f"audio_processing:{audio_processing.id}"
         await self.redis.set(
             cache_key,
-            json.dumps(audio_processing.__dict__),
+            json.dumps(audio_processing.to_dict()),
             ex=3600,  # Cache for 1 hour
         )
 
