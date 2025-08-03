@@ -23,6 +23,7 @@ dependencies = [
     "yt-dlp>=2025.6.30",
     "yt-dlp-types>=0.0.17",
     "redis[hiredis]>=6.2.0",
+    "aio-pika>=9.5.5",
 ]
 
 [dependency-groups]
