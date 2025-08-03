@@ -1,11 +1,14 @@
 import asyncio
 import os
+import uuid
 from io import BytesIO
 from typing import Annotated, Literal
+from uuid import uuid5
 
 import uvicorn
 import yt_dlp
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
+from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import UUID5, BaseModel
@@ -22,16 +25,32 @@ from app.dto.audio_processing_dto import (
     UpdateAudioProcessingRequest,
 )
 from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
+from app.infra.external_services.rabbit_mq_service import RabbitMQService
 from app.infra.external_services.s3_service import S3Service
 from app.repository.audio_processing_repository import AudioProcessingRepository
 from app.repository.user_repository import UserRepository
 from app.service.audio_processing_service import AudioProcessingService
 from app.service.auth_service import AuthService
 
+
+# Lifespan context manager
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    app.state.queue_service = RabbitMQService()
+    await app.state.queue_service.connect()
+
+    yield
+
+    # Shutdown
+    await app.state.queue_service.disconnect()
+
+
 app = FastAPI(
     title="Orpheon BE",
     description="Backend service for Orpheon",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -281,6 +300,23 @@ async def download_youtube_audio(
             print(f"Warning: failed to delete local file {file_path}: {cleanup_error}")
 
     return {"file_url": file_url}
+
+
+@app.post(
+    "/api/v1/audio-processings/jobs",
+    tags=["Audio Processing Jobs"],
+    summary="Create Audio Processing Job",
+)
+async def create_job():
+    # Create job
+    job_id = uuid5(uuid.NAMESPACE_DNS, "audio_processing_job")
+
+    # Publish to queue
+    await app.state.queue_service.publish_job(job_id)
+
+    return {
+        "job_id": str(job_id),
+    }
 
 
 def main():
