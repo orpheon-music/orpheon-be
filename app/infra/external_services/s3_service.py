@@ -3,19 +3,23 @@ from io import BytesIO
 import boto3
 from botocore.config import Config
 
-from app.config.settings import get_settings
-
-settings = get_settings()
-
 
 class S3Service:
-    def __init__(self):
+    def __init__(
+        self,
+        secret_key: str,
+        access_key: str,
+        region: str,
+        endpoint_url: str,
+    ):
+        self.endpoint_url = endpoint_url
+
         self.client = boto3.client(  # type: ignore
             "s3",
-            aws_access_key_id=settings.AWS_S3_ACCESS_KEY,
-            aws_secret_access_key=settings.AWS_S3_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_S3_REGION,
-            endpoint_url=settings.AWS_S3_URL,
+            aws_secret_access_key=secret_key,
+            aws_access_key_id=access_key,
+            region_name=region,
+            endpoint_url=endpoint_url,
             config=Config(
                 request_checksum_calculation="when_required",
                 response_checksum_validation="when_required",
@@ -31,7 +35,8 @@ class S3Service:
             file_name,
             ExtraArgs={"ACL": "public-read"},
         )
-        return f"{settings.AWS_S3_URL}/{bucket}/{file_name}"
+
+        return f"{self.endpoint_url}/{bucket}/{file_name}"
 
     async def get_presigned_url(
         self, bucket: str, file_name: str, expiration: int = 3600
