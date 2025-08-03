@@ -18,3 +18,9 @@ async def get_redis_client() -> redis.Redis:
 
 async def close_redis_connection():
     await redis_client.close()
+
+
+async def check_redis_connection():
+    """Check Redis connection during startup"""
+    await redis_client.ping()  # type: ignore
+    return True
