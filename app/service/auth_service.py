@@ -5,12 +5,12 @@ from uuid import uuid5
 
 import bcrypt
 import jwt
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 
 from app.config.settings import Settings
 from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
 from app.model.user_model import User
-from app.repository.user_repository import UserRepository
+from app.repository.user_repository import UserRepository, get_user_repository
 
 
 class AuthService:
@@ -105,3 +105,9 @@ class AuthService:
             name=user.name,
             created_at=user.created_at,
         )
+
+
+def get_auth_service(
+    user_repository: UserRepository = Depends(get_user_repository),
+) -> AuthService:
+    return AuthService(user_repository=user_repository)

@@ -2,8 +2,9 @@ import uuid
 from datetime import datetime
 from uuid import uuid5
 
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 
+from app.config.s3 import get_s3_client
 from app.dto.audio_processing_dto import (
     AudioProcessingResponse,
     CreateAudioProcessingRequest,
@@ -19,14 +20,17 @@ from app.dto.audio_processing_dto import (
 from app.dto.pagination_dto import PaginationResponse
 from app.infra.external_services.s3_service import S3Service
 from app.model.audio_processing_model import AudioProcessing
-from app.repository.audio_processing_repository import AudioProcessingRepository
+from app.repository.audio_processing_repository import (
+    AudioProcessingRepository,
+    get_audio_processing_repository,
+)
 
 
 class AudioProcessingService:
     def __init__(
         self,
-        audio_processing_repository: AudioProcessingRepository,
         s3_client: S3Service,
+        audio_processing_repository: AudioProcessingRepository,
     ):
         self.audio_processing_repository = audio_processing_repository
         self.s3_client = s3_client
@@ -232,3 +236,15 @@ class AudioProcessingService:
 
         # Save the updated audio processing
         await self.audio_processing_repository.update_audio_processing(audio_processing)
+
+
+def get_audio_processing_service(
+    s3_client: S3Service = Depends(get_s3_client),
+    audio_processing_repository: AudioProcessingRepository = Depends(
+        get_audio_processing_repository
+    ),
+) -> AudioProcessingService:
+    return AudioProcessingService(
+        s3_client=s3_client,
+        audio_processing_repository=audio_processing_repository,
+    )

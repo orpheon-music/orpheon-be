@@ -1,59 +1,57 @@
 from uuid import UUID
 
+from fastapi import Depends
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config.database import get_db
 from app.model.user_model import User
 
 
 class UserRepository:
     def __init__(
         self,
-        engine: AsyncEngine,
-        async_session_factory: async_sessionmaker[AsyncSession],
+        db: AsyncSession,
     ):
-        self.engine = engine
-        self.async_session = async_session_factory
+        self.db = db
 
     async def get_user_by_id(self, user_id: UUID) -> User | None:
         query = text("""
             SELECT * FROM users WHERE id = :user_id
                      """)
 
-        async with self.async_session() as session:
-            result = await session.execute(query, {"user_id": user_id})
-            user = result.fetchone()
-            if user is None:
-                return None
+        result = await self.db.execute(query, {"user_id": user_id})
+        user = result.fetchone()
+        if user is None:
+            return None
 
-            return User(
-                id=user.id,
-                email=user.email,
-                password=user.password,
-                name=user.name,
-                created_at=user.created_at,
-                updated_at=user.updated_at,
-            )
+        return User(
+            id=user.id,
+            email=user.email,
+            password=user.password,
+            name=user.name,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+        )
 
     async def get_user_by_email(self, email: str) -> User | None:
         query = text("""
             SELECT * FROM users WHERE email = :email
                      """)
 
-        async with self.async_session() as session:
-            result = await session.execute(query, {"email": email})
-            user = result.fetchone()
-            if user is None:
-                return None
+        result = await self.db.execute(query, {"email": email})
+        user = result.fetchone()
+        if user is None:
+            return None
 
-            return User(
-                id=user.id,
-                email=user.email,
-                password=user.password,
-                name=user.name,
-                created_at=user.created_at,
-                updated_at=user.updated_at,
-            )
+        return User(
+            id=user.id,
+            email=user.email,
+            password=user.password,
+            name=user.name,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+        )
 
     async def create_user(self, user: User) -> User:
         query = text("""
@@ -62,15 +60,18 @@ class UserRepository:
             RETURNING *
                      """)
 
-        async with self.async_session() as session:
-            result = await session.execute(
-                query,
-                {
-                    "id": user.id,
-                    "email": user.email,
-                    "password": user.password,
-                    "name": user.name,
-                },
-            )
-            await session.commit()
-            return result.scalar_one()
+        result = await self.db.execute(
+            query,
+            {
+                "id": user.id,
+                "email": user.email,
+                "password": user.password,
+                "name": user.name,
+            },
+        )
+        await self.db.commit()
+        return result.scalar_one()
+
+
+def get_user_repository(db: AsyncSession = Depends(get_db)) -> UserRepository:
+    return UserRepository(db)
