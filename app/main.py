@@ -1,11 +1,11 @@
 import asyncio
-import logging
 import os
 import uuid
 from io import BytesIO
 from typing import Annotated, Literal
 from uuid import uuid5
 
+import redis
 import uvicorn
 import yt_dlp
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
@@ -14,7 +14,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import UUID5, BaseModel
 
-from app.config.database import AsyncSessionLocal, engine
+from app.config.database import check_database_connection
+from app.config.logging import setup_logging
+from app.config.redis import (
+    check_redis_connection,
+    close_redis_connection,
+)
+from app.config.s3 import get_s3_client
 from app.dto.audio_processing_dto import (
     CreateAudioProcessingRequest,
     CreateAudioProcessingResponse,
@@ -31,13 +37,13 @@ from app.infra.external_services.rabbit_mq_service import (
     RabbitMQService,
 )
 from app.infra.external_services.s3_service import S3Service
-from app.repository.audio_processing_repository import AudioProcessingRepository
-from app.repository.user_repository import UserRepository
-from app.service.audio_processing_service import AudioProcessingService
-from app.service.auth_service import AuthService
+from app.service.audio_processing_service import (
+    AudioProcessingService,
+    get_audio_processing_service,
+)
+from app.service.auth_service import AuthService, get_auth_service
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = setup_logging()
 
 
 # Background task to run consumer
@@ -55,10 +61,47 @@ async def start_background_consumer():
 
 # Lifespan context manager
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(
+    app: FastAPI,
+):
     # Startup
+    logger.info("Starting Orpheon BE...")
+
+    # Check db connection
+    try:
+        await check_database_connection()
+        logger.info("Database connection established")
+    except Exception as e:
+        logger.error(f"Database connection error: {e}")
+
+    # Check redis connection
+    try:
+        await check_redis_connection()
+        logger.info("Redis connection established")
+    except redis.ConnectionError as e:  # type: ignore
+        logger.error(f"Redis connection error: {e}")
+
+    # Check RabbitMQ connection
     app.state.queue_service = RabbitMQService()
-    await app.state.queue_service.connect()
+    try:
+        await app.state.queue_service.connect()
+        logger.info("RabbitMQ connection established")
+    except Exception as e:
+        logger.error(f"RabbitMQ connection error: {e}")
+
+    # Check S3 Bucket
+    try:
+        s3_service: S3Service = get_s3_client()  # type: ignore
+
+        kwargs = {
+            "Bucket": "ahargunyllib-s3-testing",
+        }
+
+        s3_service.client.head_bucket(**kwargs)
+
+        logger.info("S3 connection established")
+    except Exception as e:
+        logger.error(f"S3 connection error: {e}")
 
     # Start background consumer
     consumer_task = asyncio.create_task(start_background_consumer())
@@ -67,7 +110,25 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
-    await app.state.queue_service.disconnect()
+    # Cancel consumer task
+    if hasattr(app.state, "consumer_task"):
+        app.state.consumer_task.cancel()
+        try:
+            await app.state.consumer_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Background consumer stopped")
+
+    # Disconnect from RabbitMQ
+    if hasattr(app.state, "queue_service"):
+        await app.state.queue_service.disconnect()
+        logger.info("Disconnected from RabbitMQ")
+
+    # Close Redis connection
+    await close_redis_connection()
+    logger.info("Redis connection closed")
+
+    logger.info("Orpheon BE shutdown complete")
 
 
 app = FastAPI(
@@ -85,22 +146,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-s3_service = S3Service()
-
-user_repo = UserRepository(
-    engine=engine,
-    async_session_factory=AsyncSessionLocal,
-)
-audio_processing_repo = AudioProcessingRepository(
-    engine=engine,
-    async_session_factory=AsyncSessionLocal,
-)
-
-auth_svc = AuthService(user_repository=user_repo)
-audio_processing_svc = AudioProcessingService(
-    audio_processing_repository=audio_processing_repo, s3_client=s3_service
-)
-
 security = HTTPBearer(
     scheme_name="Bearer",
     description="Bearer token authentication for API endpoints",
@@ -109,6 +154,7 @@ security = HTTPBearer(
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
+    auth_svc: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
     token = credentials.credentials
     return await auth_svc.get_session(token)
@@ -125,7 +171,10 @@ def read_root():
     summary="User Registration",
     status_code=status.HTTP_201_CREATED,
 )
-async def register_user(req: RegisterRequest):
+async def register_user(
+    req: RegisterRequest,
+    auth_svc: AuthService = Depends(get_auth_service),
+) -> None:
     return await auth_svc.register_user(req)
 
 
@@ -136,7 +185,9 @@ async def register_user(req: RegisterRequest):
     status_code=status.HTTP_200_OK,
     response_model=LoginResponse,
 )
-async def login_user(req: LoginRequest):
+async def login_user(
+    req: LoginRequest, auth_svc: AuthService = Depends(get_auth_service)
+):
     return await auth_svc.login_user(req)
 
 
@@ -162,6 +213,9 @@ async def check_session(
 async def get_audio_processing_library(
     query: Annotated[GetAudioProcessingsQuery, Depends()],
     current_user: UserResponse = Depends(get_current_user),
+    audio_processing_svc: AudioProcessingService = Depends(
+        get_audio_processing_service
+    ),
 ):
     """Fetch audio processing library with pagination."""
     return await audio_processing_svc.get_library(query, current_user.id)
@@ -176,6 +230,9 @@ async def get_audio_processing_library(
 async def get_audio_processing_by_id(
     audio_processing_id: UUID5,
     _current_user: UserResponse = Depends(get_current_user),
+    audio_processing_svc: AudioProcessingService = Depends(
+        get_audio_processing_service
+    ),
 ):
     query = GetAudioProcessingByIdQuery(
         audio_processing_id=audio_processing_id,
@@ -197,6 +254,9 @@ async def create_audio_processing(
     instrument_file: Annotated[UploadFile, File()],
     reference_url: Annotated[str, File()],
     current_user: UserResponse = Depends(get_current_user),
+    audio_processing_svc: AudioProcessingService = Depends(
+        get_audio_processing_service
+    ),
 ):
     req = CreateAudioProcessingRequest(
         voice_file=voice_file,
@@ -218,6 +278,9 @@ async def update_audio_processing(
     manual_file: Annotated[UploadFile | None, File()] = None,
     type: Annotated[Literal["standard", "dynamic", "smooth"] | None, File()] = None,
     _current_user: UserResponse = Depends(get_current_user),
+    audio_processing_svc: AudioProcessingService = Depends(
+        get_audio_processing_service
+    ),
 ):
     if not manual_file and not type:
         raise HTTPException(
@@ -247,7 +310,9 @@ async def update_audio_processing(
     summary="Upload File",
     status_code=status.HTTP_201_CREATED,
 )
-async def upload_file(file: Annotated[UploadFile, File()]):
+async def upload_file(
+    file: Annotated[UploadFile, File()], s3_service: S3Service = Depends(S3Service)
+):
     data = await file.read()
     print(f"Received file: {file.filename}, size: {len(data)} bytes")
     file_content = BytesIO(data)
@@ -295,6 +360,7 @@ def download_audio(url: str, output_dir: str = "/tmp") -> str:
 )
 async def download_youtube_audio(
     req: DownloadYTRequest,
+    s3_service: S3Service = Depends(S3Service),
 ):
     url = req.url.strip()
     print(f"Received YouTube URL: {url}")
