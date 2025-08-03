@@ -1,3 +1,6 @@
+from collections.abc import AsyncGenerator
+
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config.settings import get_settings
@@ -16,11 +19,19 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
-async def get_db():
-    """
-    Get a database session.
-    This function is used to create a new database session.
-    It is used in the dependency injection system of FastAPI.
-    """
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+async def check_database_connection():
+    """Check database connection during startup"""
+    async with AsyncSessionLocal() as db:
+        await db.execute(text("SELECT 1"))
+        return True
