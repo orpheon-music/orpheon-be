@@ -54,6 +54,7 @@ class AudioProcessingRepository:
                     manual_audio_url=row.manual_audio_url,
                     created_at=row.created_at,
                     updated_at=row.updated_at,
+                    user=None,  # User will be set later if needed
                 )
                 for row in audio_processings
             ]
@@ -88,9 +89,8 @@ class AudioProcessingRepository:
                 created_at=audio_processing.created_at,
                 updated_at=audio_processing.updated_at,
             )
-    async def count_audio_processings_by_user_id(
-        self, user_id: UUID
-    ) -> int:
+
+    async def count_audio_processings_by_user_id(self, user_id: UUID) -> int:
         query = text("""
             SELECT COUNT(*) FROM audio_processings WHERE user_id = :user_id
         """)

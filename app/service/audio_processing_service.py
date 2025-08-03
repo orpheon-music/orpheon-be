@@ -23,7 +23,11 @@ from app.repository.audio_processing_repository import AudioProcessingRepository
 
 
 class AudioProcessingService:
-    def __init__(self, audio_processing_repository: AudioProcessingRepository, s3_client: S3Service):
+    def __init__(
+        self,
+        audio_processing_repository: AudioProcessingRepository,
+        s3_client: S3Service,
+    ):
         self.audio_processing_repository = audio_processing_repository
         self.s3_client = s3_client
 
@@ -60,6 +64,8 @@ class AudioProcessingService:
             dynamic_audio_url="https://is3.cloudhost.id/ahargunyllib-s3-testing/dynamic.wav",
             smooth_audio_url="https://is3.cloudhost.id/ahargunyllib-s3-testing/standard.wav",
             manual_audio_url=None,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
 
         await self.audio_processing_repository.create_audio_processing(audio_processing)
@@ -86,41 +92,6 @@ class AudioProcessingService:
         self, query: GetAudioProcessingsQuery, user_id: uuid.UUID
     ) -> GetAudioProcessingsResponse:
         """Get audio processing library"""
-        # Placeholder for actual implementation
-        # audio_processings = [
-        #     AudioProcessingResponse(
-        #         id=uuid5(namespace=uuid.NAMESPACE_DNS, name="audio1"),
-        #         user_id=uuid.uuid4(),
-        #         name="sample-audio1.mp3",
-        #         size=1024,
-        #         duration=120,
-        #         format="mp3",
-        #         bitrate=128,
-        #         standard_audio_url="https://is3.cloudhost.id/ahargunyllib-s3-testing/standard.wav",
-        #         dynamic_audio_url="https://is3.cloudhost.id/ahargunyllib-s3-testing/dynamic.wav",
-        #         smooth_audio_url="https://is3.cloudhost.id/ahargunyllib-s3-testing/standard.wav",
-        #     ),
-        #     AudioProcessingResponse(
-        #         id=uuid5(namespace=uuid.NAMESPACE_DNS, name="audio1"),
-        #         user_id=uuid.uuid4(),
-        #         name="sample-audio2.mp3",
-        #         size=1024,
-        #         duration=120,
-        #         format="mp3",
-        #         bitrate=128,
-        #         standard_audio_url=None,
-        #         dynamic_audio_url=None,
-        #         smooth_audio_url=None,
-        #     ),
-        # ]
-
-        # pagination = PaginationResponse(
-        #     page=1,
-        #     limit=10,
-        #     total_data=2,
-        #     total_page=1,
-        # )
-
         audio_processings = (
             await self.audio_processing_repository.get_audio_processings_by_user_id(
                 user_id=user_id,
@@ -142,21 +113,30 @@ class AudioProcessingService:
         audio_processings_res: list[AudioProcessingResponse] = []
 
         for audio_processing in audio_processings:
-            standard_audio_url = await self.s3_client.get_presigned_url(
-                bucket="ahargunyllib-s3-testing",
-                file_name=audio_processing.standard_audio_url.split("/")[-1],
-                expiration=8 * 3600,  # 8 hour
-            )
-            dynamic_audio_url = await self.s3_client.get_presigned_url(
-                bucket="ahargunyllib-s3-testing",
-                file_name=audio_processing.dynamic_audio_url.split("/")[-1],
-                expiration=8 * 3600,  # 8 hour
-            )
-            smooth_audio_url = await self.s3_client.get_presigned_url(
-                bucket="ahargunyllib-s3-testing",
-                file_name=audio_processing.smooth_audio_url.split("/")[-1],
-                expiration=8 * 3600,  # 8 hour
-            )
+            standard_audio_url = None
+            if audio_processing.standard_audio_url:
+                standard_audio_url = await self.s3_client.get_presigned_url(
+                    bucket="ahargunyllib-s3-testing",
+                    file_name=audio_processing.standard_audio_url.split("/")[-1],
+                    expiration=8 * 3600,  # 8 hour
+                )
+
+            dynamic_audio_url = None
+            if audio_processing.dynamic_audio_url:
+                dynamic_audio_url = await self.s3_client.get_presigned_url(
+                    bucket="ahargunyllib-s3-testing",
+                    file_name=audio_processing.dynamic_audio_url.split("/")[-1],
+                    expiration=8 * 3600,  # 8 hour
+                )
+
+            smooth_audio_url = None
+            if audio_processing.smooth_audio_url:
+                smooth_audio_url = await self.s3_client.get_presigned_url(
+                    bucket="ahargunyllib-s3-testing",
+                    file_name=audio_processing.smooth_audio_url.split("/")[-1],
+                    expiration=8 * 3600,  # 8 hour
+                )
+
             audio_processings_res.append(
                 AudioProcessingResponse(
                     id=audio_processing.id,
@@ -194,22 +174,29 @@ class AudioProcessingService:
                 detail="Audio processing not found",
             )
         # Generate presigned URLs for audio files
-        standard_audio_url = await self.s3_client.get_presigned_url(
-            bucket="ahargunyllib-s3-testing",
-            file_name=audio_processing.standard_audio_url.split("/")[-1],
-            expiration=8 * 3600,  # 8 hour
-        )
+        standard_audio_url = None
+        if audio_processing.standard_audio_url:
+            standard_audio_url = await self.s3_client.get_presigned_url(
+                bucket="ahargunyllib-s3-testing",
+                file_name=audio_processing.standard_audio_url.split("/")[-1],
+                expiration=8 * 3600,  # 8 hour
+            )
 
-        dynamic_audio_url = await self.s3_client.get_presigned_url(
-            bucket="ahargunyllib-s3-testing",
-            file_name=audio_processing.dynamic_audio_url.split("/")[-1],
-            expiration=8 * 3600,  # 8 hour
-        )
-        smooth_audio_url = await self.s3_client.get_presigned_url(
-            bucket="ahargunyllib-s3-testing",
-            file_name=audio_processing.smooth_audio_url.split("/")[-1],
-            expiration=8 * 3600,  # 8 hour
-        )
+        dynamic_audio_url = None
+        if audio_processing.dynamic_audio_url:
+            dynamic_audio_url = await self.s3_client.get_presigned_url(
+                bucket="ahargunyllib-s3-testing",
+                file_name=audio_processing.dynamic_audio_url.split("/")[-1],
+                expiration=8 * 3600,  # 8 hour
+            )
+
+        smooth_audio_url = None
+        if audio_processing.smooth_audio_url:
+            smooth_audio_url = await self.s3_client.get_presigned_url(
+                bucket="ahargunyllib-s3-testing",
+                file_name=audio_processing.smooth_audio_url.split("/")[-1],
+                expiration=8 * 3600,  # 8 hour
+            )
 
         audio_processing = AudioProcessingResponse(
             id=audio_processing.id,

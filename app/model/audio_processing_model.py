@@ -1,25 +1,54 @@
-from sqlalchemy import Column, DateTime, Integer, String
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.declarative import declarative_base
+from datetime import datetime
+from uuid import UUID
 
-Base = declarative_base()
+from app.model.user_model import User
 
 
-class AudioProcessing(Base):
-    __tablename__ = "audio_processings"
+class AudioProcessing:
+    id: UUID
+    user_id: UUID
+    name: str
+    size: int
+    duration: int
+    format: str
+    bitrate: int
+    standard_audio_url: str | None = None
+    dynamic_audio_url: str | None = None
+    smooth_audio_url: str | None = None
+    manual_audio_url: str | None = None
+    created_at: datetime
+    updated_at: datetime
 
-    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
-    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    name = Column(String(255), nullable=False)
-    size = Column(Integer, nullable=False)
-    duration = Column(Integer, nullable=False)
-    format = Column(String(50), nullable=False)
-    bitrate = Column(Integer, nullable=False)
-    standard_audio_url = Column(String(255), nullable=True)
-    dynamic_audio_url = Column(String(255), nullable=True)
-    smooth_audio_url = Column(String(255), nullable=True)
-    manual_audio_url = Column(String(255), nullable=True)
-    created_at = Column(DateTime, server_default="now()", nullable=False)
-    updated_at = Column(
-        DateTime, server_default="now()", onupdate="now()", nullable=False
-    )
+    user: User | None
+
+    def __init__(
+        self,
+        id: UUID,
+        user_id: UUID,
+        name: str,
+        size: int,
+        duration: int,
+        format: str,
+        bitrate: int,
+        created_at: datetime,
+        updated_at: datetime,
+        standard_audio_url: str | None = None,
+        dynamic_audio_url: str | None = None,
+        smooth_audio_url: str | None = None,
+        manual_audio_url: str | None = None,
+        user: User | None = None,
+    ):
+        self.id = id
+        self.user_id = user_id
+        self.name = name
+        self.size = size
+        self.duration = duration
+        self.format = format
+        self.bitrate = bitrate
+        self.standard_audio_url = standard_audio_url
+        self.dynamic_audio_url = dynamic_audio_url
+        self.smooth_audio_url = smooth_audio_url
+        self.manual_audio_url = manual_audio_url
+        self.created_at = created_at
+        self.updated_at = updated_at
+        self.user = user

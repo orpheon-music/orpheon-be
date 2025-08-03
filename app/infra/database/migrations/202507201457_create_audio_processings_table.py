@@ -20,39 +20,38 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    alembic.op.create_table(
-        "audio_processings",
-        sqlalchemy.Column("id", sqlalchemy.UUID, primary_key=True, nullable=False),  # type: ignore
-        sqlalchemy.Column("user_id", sqlalchemy.UUID, nullable=False),  # type: ignore
-        sqlalchemy.ForeignKeyConstraint(
-            ["user_id"],
-            ["users.id"],
-            ondelete="CASCADE",
-        ),
-        sqlalchemy.Column("name", sqlalchemy.VARCHAR(255), nullable=False),
-        sqlalchemy.Column("size", sqlalchemy.INTEGER, nullable=False),
-        sqlalchemy.Column("duration", sqlalchemy.INTEGER, nullable=False),
-        sqlalchemy.Column("format", sqlalchemy.VARCHAR(50), nullable=False),
-        sqlalchemy.Column("bitrate", sqlalchemy.INTEGER, nullable=False),
-        sqlalchemy.Column("standard_audio_url", sqlalchemy.VARCHAR(255), nullable=True),
-        sqlalchemy.Column("dynamic_audio_url", sqlalchemy.VARCHAR(255), nullable=True),
-        sqlalchemy.Column("smooth_audio_url", sqlalchemy.VARCHAR(255), nullable=True),
-        sqlalchemy.Column("manual_audio_url", sqlalchemy.VARCHAR(255), nullable=True),
-        sqlalchemy.Column(
-            "created_at",
-            sqlalchemy.TIMESTAMP,
-            server_default=sqlalchemy.func.now(),
-            nullable=False,
-        ),
-        sqlalchemy.Column(
-            "updated_at",
-            sqlalchemy.TIMESTAMP,
-            server_default=sqlalchemy.func.now(),
-            onupdate=sqlalchemy.func.now(),
-            nullable=False,
-        ),
+    conn = alembic.op.get_bind()
+
+    conn.execute(
+        sqlalchemy.text(
+            """
+            CREATE TABLE IF NOT EXISTS audio_processings (
+              id UUID PRIMARY KEY NOT NULL,
+              user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              name VARCHAR(255) NOT NULL,
+              size INTEGER NOT NULL,
+              duration INTEGER NOT NULL,
+              format VARCHAR(50) NOT NULL,
+              bitrate INTEGER NOT NULL,
+              standard_audio_url VARCHAR(255),
+              dynamic_audio_url VARCHAR(255),
+              smooth_audio_url VARCHAR(255),
+              manual_audio_url VARCHAR(255),
+              created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+              updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+            );
+          """
+        )
     )
 
 
 def downgrade() -> None:
-    alembic.op.drop_table("audio_processings")
+    conn = alembic.op.get_bind()
+
+    conn.execute(
+        sqlalchemy.text(
+            """
+            DROP TABLE IF EXISTS audio_processings;
+          """
+        )
+    )

@@ -20,29 +20,31 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    alembic.op.create_table(
-        "users",
-        sqlalchemy.Column("id", sqlalchemy.UUID, primary_key=True, nullable=False), # type: ignore
-        sqlalchemy.Column("name", sqlalchemy.VARCHAR(255), nullable=False),
-        sqlalchemy.Column(
-            "email", sqlalchemy.VARCHAR(255), unique=True, nullable=False
-        ),
-        sqlalchemy.Column("password", sqlalchemy.TEXT, nullable=False),
-        sqlalchemy.Column(
-            "created_at",
-            sqlalchemy.TIMESTAMP,
-            server_default=sqlalchemy.func.now(),
-            nullable=False,
-        ),
-        sqlalchemy.Column(
-            "updated_at",
-            sqlalchemy.TIMESTAMP,
-            server_default=sqlalchemy.func.now(),
-            onupdate=sqlalchemy.func.now(),
-            nullable=False,
-        ),
+    conn = alembic.op.get_bind()
+
+    conn.execute(
+        sqlalchemy.text(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+              id UUID PRIMARY KEY NOT NULL,
+              name VARCHAR(255) NOT NULL,
+              email VARCHAR(255) UNIQUE NOT NULL,
+              password TEXT NOT NULL,
+              created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+              updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+            );
+          """
+        )
     )
 
 
 def downgrade() -> None:
-    alembic.op.drop_table("users")
+    conn = alembic.op.get_bind()
+
+    conn.execute(
+        sqlalchemy.text(
+            """
+            DROP TABLE IF EXISTS users;
+          """
+        )
+    )

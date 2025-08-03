@@ -8,7 +8,7 @@ import jwt
 from fastapi import HTTPException, status
 
 from app.config.settings import Settings
-from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest
+from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
 from app.model.user_model import User
 from app.repository.user_repository import UserRepository
 
@@ -42,6 +42,8 @@ class AuthService:
                 email=user_data.email,
                 password=password_hash,
                 name=user_data.name,
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
         )
 
@@ -77,7 +79,7 @@ class AuthService:
 
         return LoginResponse(access_token=access_token)
 
-    async def get_session(self, token: str) -> User:
+    async def get_session(self, token: str) -> UserResponse:
         """Get user session from token"""
         settings = Settings()
         payload = jwt.decode(  # type: ignore
@@ -97,4 +99,9 @@ class AuthService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
 
-        return user
+        return UserResponse(
+            id=user.id,
+            email=user.email,
+            name=user.name,
+            created_at=user.created_at,
+        )

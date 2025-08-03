@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import uuid
 from io import BytesIO
@@ -25,12 +26,31 @@ from app.dto.audio_processing_dto import (
     UpdateAudioProcessingRequest,
 )
 from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
-from app.infra.external_services.rabbit_mq_service import RabbitMQService
+from app.infra.external_services.rabbit_mq_service import (
+    AsyncAudioConsumer,
+    RabbitMQService,
+)
 from app.infra.external_services.s3_service import S3Service
 from app.repository.audio_processing_repository import AudioProcessingRepository
 from app.repository.user_repository import UserRepository
 from app.service.audio_processing_service import AudioProcessingService
 from app.service.auth_service import AuthService
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+# Background task to run consumer
+async def start_background_consumer():
+    """Start consumer in background task"""
+    consumer = AsyncAudioConsumer()
+    try:
+        logger.info("Starting background consumer...")
+        await consumer.start_consuming()
+    except Exception as e:
+        logger.error(f"Background consumer error: {e}")
+    finally:
+        await consumer.stop_consuming()
 
 
 # Lifespan context manager
@@ -39,6 +59,10 @@ async def lifespan(app: FastAPI):
     # Startup
     app.state.queue_service = RabbitMQService()
     await app.state.queue_service.connect()
+
+    # Start background consumer
+    consumer_task = asyncio.create_task(start_background_consumer())
+    app.state.consumer_task = consumer_task
 
     yield
 
