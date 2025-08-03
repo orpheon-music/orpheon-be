@@ -45,10 +45,33 @@ services:
       retries: 3
     volumes:
       - redis:/data
+  rabbitmq:
+    image: rabbitmq:4.1.2-management-alpine
+    ports:
+      - 15672:15672
+      - 5672:5672
+    networks:
+      - network
+    restart: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      start_period: 10s
+      start_interval: 5s
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq:/var/lib/rabbitmq
+
 volumes:
   postgres:
     driver: local
   redis:
+    driver: local
+  rabbitmq:
     driver: local
 
 networks:
