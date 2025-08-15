@@ -11,6 +11,7 @@ import yt_dlp
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import UUID5, BaseModel
 
@@ -311,7 +312,7 @@ async def update_audio_processing(
     status_code=status.HTTP_201_CREATED,
 )
 async def upload_file(
-    file: Annotated[UploadFile, File()], s3_service: S3Service = Depends(S3Service)
+    file: Annotated[UploadFile, File()], s3_service: S3Service = Depends(get_s3_client)
 ):
     data = await file.read()
     print(f"Received file: {file.filename}, size: {len(data)} bytes")
@@ -322,6 +323,48 @@ async def upload_file(
     bucket = "ahargunyllib-s3-testing"
     file_url = await s3_service.upload_file(file_content, file_name, bucket)
     return {"file_url": file_url}
+
+
+@app.post(
+    "/api/v1/files/download",
+    tags=["Files"],
+    summary="Download File",
+    status_code=status.HTTP_200_OK,
+)
+async def download_file(
+    url: str,
+    s3_service: S3Service = Depends(get_s3_client),
+):
+    print(f"Downloading file: {url}")
+    try:
+        # Parse the URL to get bucket and file name
+        if not url.startswith("https://") and not url.startswith("http://"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid URL format. Must start with http:// or https://",
+            )
+
+        bucket = "ahargunyllib-s3-testing"  # Assuming a fixed bucket for this example
+        file_name = url.split("/")[-1]  # Extract file name from URL
+
+        file_content = await s3_service.download_file(bucket, file_name)
+        if not file_content:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="File not found in S3 bucket.",
+            )
+        return StreamingResponse(
+            file_content,
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": f"attachment; filename={file_name}"},
+            status_code=status.HTTP_200_OK,
+        )
+    except Exception as e:
+        print(f"Error downloading file: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to download file from S3.",
+        ) from e
 
 
 class DownloadYTRequest(BaseModel):
@@ -360,7 +403,7 @@ def download_audio(url: str, output_dir: str = "/tmp") -> str:
 )
 async def download_youtube_audio(
     req: DownloadYTRequest,
-    s3_service: S3Service = Depends(S3Service),
+    s3_service: S3Service = Depends(get_s3_client),
 ):
     url = req.url.strip()
     print(f"Received YouTube URL: {url}")
