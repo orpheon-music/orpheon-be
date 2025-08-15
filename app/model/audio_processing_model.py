@@ -67,6 +67,6 @@ class AudioProcessing:
             "dynamic_audio_url": self.dynamic_audio_url,
             "smooth_audio_url": self.smooth_audio_url,
             "manual_audio_url": self.manual_audio_url,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
+            "created_at": str(self.created_at),
+            "updated_at": str(self.updated_at),
         }

@@ -22,6 +22,9 @@ class AudioProcessingResponse(BaseModel):
     dynamic_audio_url: str | None
     smooth_audio_url: str | None
 
+    created_at: str
+    updated_at: str
+
 
 class CreateAudioProcessingRequest(BaseModel):
     voice_file: Annotated[UploadFile, File()]
@@ -40,8 +43,8 @@ class UpdateAudioProcessingQuery(BaseModel):
 
 
 class UpdateAudioProcessingRequest(BaseModel):
-  manual_file: Annotated[UploadFile | None, File()] = None
-  type: Literal["standard", "dynamic", "smooth"] | None = None
+    manual_file: Annotated[UploadFile | None, File()] = None
+    type: Literal["standard", "dynamic", "smooth"] | None = None
 
 
 class GetAudioProcessingsQuery(BaseModel):
@@ -56,7 +59,10 @@ class GetAudioProcessingsResponse(BaseModel):
     audio_processings: list[AudioProcessingResponse]
     meta: GetAudioProcessingsMeta
 
+
 class GetAudioProcessingByIdQuery(BaseModel):
     audio_processing_id: UUID
+
+
 class GetAudioProcessingByIdResponse(BaseModel):
     audio_processing: AudioProcessingResponse
