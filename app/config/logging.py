@@ -40,6 +40,10 @@ def setup_logging():
                 "stream": sys.stdout,
             },
         },
+         "root": {
+            "level": log_level,
+            "handlers": ["default"],
+        },
         "loggers": {
             "orpheon_be": {
                 "handlers": ["default"],
