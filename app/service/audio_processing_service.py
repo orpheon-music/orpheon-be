@@ -62,9 +62,10 @@ class AudioProcessingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Voice file is required",
             )
+        logger.info("Voice file provided")
 
         # only support .wav, .mp3, .flac
-        if req.voice_file.filename and not req.voice_file.filename.endswith(
+        if not req.voice_file.filename.endswith( # type: ignore
             (".wav", ".mp3", ".flac")
         ):
             logger.warning(f"Unsupported file format: {req.voice_file.filename}")
@@ -72,14 +73,16 @@ class AudioProcessingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Only .wav, .mp3, .flac files are supported",
             )
+        logger.info(f"Voice file format is {req.voice_file.filename.split('.')[-1]}") # type: ignore
 
         # Check if the file size is less than 100MB
-        if req.voice_file.size and req.voice_file.size > 100 * 1024 * 1024:  # 100MB
+        if req.voice_file.size > 100 * 1024 * 1024:  # type: ignore # 100MB
             logger.warning(f"File size too large: {req.voice_file.size} bytes")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File size must be less than 100MB",
             )
+        logger.info(f"Voice file size: {req.voice_file.size} bytes, {req.voice_file.size / (1024 * 1024):.2f} MB")  # type: ignore
 
         # Check if the file duration is less than 10 minutes
         voice_file_mutagen = None
@@ -91,13 +94,14 @@ class AudioProcessingService:
             voice_file_mutagen = mutagenWAVE.Open(req.voice_file.file)
 
         if (
-            voice_file_mutagen and voice_file_mutagen.info.length > 10 * 60  # type: ignore # 10 minutes
+            voice_file_mutagen.info.length > 10 * 60  # type: ignore # 10 minutes
         ):
             logger.warning(f"File duration: {voice_file_mutagen.info.length}")  # type: ignore
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File duration must be less than 10 minutes",
             )
+        logger.info(f"Voice file mutagen duration: {voice_file_mutagen.info.length}")  # type: ignore
 
         # validate instrument_file
         logger.info("Validating instrument file")
@@ -106,9 +110,10 @@ class AudioProcessingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Instrument file is required",
             )
+        logger.info("Instrument file provided")
 
         # only support .wav, .mp3, .flac
-        if req.instrument_file.filename and not req.instrument_file.filename.endswith(
+        if not req.instrument_file.filename.endswith( # type: ignore
             (".wav", ".mp3", ".flac")
         ):
             logger.warning(
@@ -118,16 +123,22 @@ class AudioProcessingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Only .wav, .mp3, .flac files are supported",
             )
+        logger.info(
+            f"Instrument file format is {req.instrument_file.filename.split('.')[-1]}"  # type: ignore
+        )
 
         # Check if the file size is less than 100MB
         if (
-            req.instrument_file.size and req.instrument_file.size > 100 * 1024 * 1024
+            req.instrument_file.size > 100 * 1024 * 1024 # type: ignore
         ):  # 100MB
             logger.warning(f"Instrument file size: {req.instrument_file.size}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File size must be less than 100MB",
             )
+        logger.info(
+            f"Instrument file size: {req.instrument_file.size} bytes, {req.instrument_file.size / (1024 * 1024):.2f} MB"  # type: ignore
+        )
 
         # Check if the file duration is less than 10 minutes
         instrument_file_mutagen = None
@@ -145,7 +156,7 @@ class AudioProcessingService:
             instrument_file_mutagen = mutagenWAVE.Open(req.instrument_file.file)
 
         if (
-            instrument_file_mutagen and instrument_file_mutagen.info.length > 10 * 60  # type: ignore # 10 minutes
+            instrument_file_mutagen.info.length > 10 * 60  # type: ignore # 10 minutes
         ):
             logger.warning(
                 f"Instrument file duration: {instrument_file_mutagen.info.length}"  # type: ignore
@@ -154,6 +165,9 @@ class AudioProcessingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File duration must be less than 10 minutes",
             )
+        logger.info(
+            f"Instrument file mutagen duration: {instrument_file_mutagen.info.length}"  # type: ignore
+        )
 
         # validate reference_url
         if not req.reference_url:
@@ -161,6 +175,7 @@ class AudioProcessingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Reference URL is required",
             )
+        logger.info(f"Reference URL provided: {req.reference_url}")
 
         # Check if the reference URL is a valid Youtube URL
         pattern = re.compile(
@@ -172,6 +187,7 @@ class AudioProcessingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid Youtube URL",
             )
+        logger.info(f"Reference URL is valid: {req.reference_url}")
 
         # Create UUID
         id = uuid5(
@@ -181,15 +197,16 @@ class AudioProcessingService:
 
         name = req.voice_file.filename or "audio"
         size = req.voice_file.size or 0
-        duration = int(
-            voice_file_mutagen.info.length if voice_file_mutagen else 0  # type: ignore
-        )
+        duration = round(voice_file_mutagen.info.length)  # type: ignore
         format = (
             req.voice_file.filename.split(".")[-1]
             if req.voice_file.filename
             else "unknown"
         )
-        bitrate: int = voice_file_mutagen.info.bitrate if voice_file_mutagen else 0  # type: ignore
+        bitrate = voice_file_mutagen.info.bitrate  # type: ignore
+        logger.info(
+            f"Creating audio processing with ID: {id}, Name: {name}, Size: {size}, Duration: {duration}, Format: {format}, Bitrate: {bitrate}"  # type: ignore
+        )
 
         audio_processing = AudioProcessing(
             id=id,
@@ -225,6 +242,8 @@ class AudioProcessingService:
                 standard_audio_url=audio_processing.standard_audio_url,
                 dynamic_audio_url=audio_processing.dynamic_audio_url,
                 smooth_audio_url=audio_processing.smooth_audio_url,
+                created_at=str(audio_processing.created_at),
+                updated_at=str(audio_processing.updated_at),
             )
         )
         return res
@@ -346,6 +365,8 @@ class AudioProcessingService:
                     standard_audio_url=standard_audio_url,
                     dynamic_audio_url=dynamic_audio_url,
                     smooth_audio_url=smooth_audio_url,
+                    created_at=str(audio_processing.created_at),
+                    updated_at=str(audio_processing.updated_at),
                 )
             )
 
@@ -406,6 +427,8 @@ class AudioProcessingService:
             standard_audio_url=standard_audio_url,
             dynamic_audio_url=dynamic_audio_url,
             smooth_audio_url=smooth_audio_url,
+            created_at=str(audio_processing.created_at),
+            updated_at=str(audio_processing.updated_at),
         )
 
         return GetAudioProcessingByIdResponse(audio_processing=audio_processing)
