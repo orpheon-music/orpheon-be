@@ -30,8 +30,8 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         finally:
             await session.close()
 
+
 async def check_database_connection():
     """Check database connection during startup"""
     async with AsyncSessionLocal() as db:
         await db.execute(text("SELECT 1"))
-        return True
