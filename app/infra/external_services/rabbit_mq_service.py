@@ -77,17 +77,25 @@ class RabbitMQService:
         await self.processing_queue.bind(self.exchange, "audio.processing.new")
         await self.retry_queue.bind(self.exchange, "audio.processing.retry")
 
-    async def publish_job(self, job_id: uuid.UUID, priority: str = "normal"):
+    async def publish_job(
+        self,
+        job_id: uuid.UUID,
+        priority: str = "normal",
+        additional_data: dict[str, str] | None = None,
+    ):
         if not self.exchange:
             raise RuntimeError("Exchange is not initialized. Call connect() first.")
 
         """Publish job to processing queue"""
-        message_body = {  # type: ignore
+        message_body: dict[str, str | int] = {  # type: ignore
             "job_id": str(job_id),
             "action": "process",
             "priority": priority,
             "retry_count": 0,
         }
+
+        if additional_data:
+            message_body.update(additional_data)
 
         message = Message(
             json.dumps(message_body).encode(),
@@ -169,7 +177,15 @@ class AsyncAudioConsumer:
             job_id = uuid.UUID(body["job_id"])
             retry_count = body.get("retry_count", 0)
 
-            print(f"Processing job {job_id} with retry count {retry_count}")
+            voice_file_url = body.get("voice_file_url")
+            instrument_file_url = body.get("instrument_file_url")
+            reference_file_url = body.get("reference_file_url")
+
+            print(
+                f"Processing job {job_id} with retry count {retry_count} - "
+                f"Voice: {voice_file_url}, Instrument: {instrument_file_url}, "
+                f"Reference: {reference_file_url}"
+            )
 
             # Acknowledge message on success
             await message.ack()

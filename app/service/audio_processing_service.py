@@ -194,7 +194,7 @@ class AudioProcessingService:
         voice_file_data = await req.voice_file.read()
         voice_file_content = BytesIO(voice_file_data)
         voice_file_filename = f"{id}-voice.{req.voice_file.filename.split('.')[-1]}"  # type: ignore
-        await self.s3_client.upload_file(
+        voice_file_url = await self.s3_client.upload_file(
             voice_file_content, voice_file_filename, "ahargunyllib-s3-testing"
         )
 
@@ -203,7 +203,7 @@ class AudioProcessingService:
         instrument_file_filename = (
             f"{id}-instrument.{req.instrument_file.filename.split('.')[-1]}"  # type: ignore
         )
-        await self.s3_client.upload_file(
+        instrument_file_url = await self.s3_client.upload_file(
             instrument_file_content, instrument_file_filename, "ahargunyllib-s3-testing"
         )
 
@@ -213,7 +213,7 @@ class AudioProcessingService:
             file_content = BytesIO(f.read())
 
         reference_file_name = f"{id}-reference.mp3"
-        await self.s3_client.upload_file(
+        reference_file_url = await self.s3_client.upload_file(
             file_content, reference_file_name, "ahargunyllib-s3-testing"
         )
 
@@ -221,7 +221,15 @@ class AudioProcessingService:
 
         await self.audio_processing_repository.create_audio_processing(audio_processing)
 
-        await self.rabbitmq_service.publish_job(audio_processing.id)
+        await self.rabbitmq_service.publish_job(
+            audio_processing.id,
+            "normal",
+            {
+                "voice_file_url": voice_file_url,
+                "instrument_file_url": instrument_file_url,
+                "reference_file_url": reference_file_url,
+            },
+        )
 
         # Clear cache for the user
         cache_key = f"user:{req.user_id}:audio_processings"
