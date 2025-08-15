@@ -1,6 +1,5 @@
 import json
 import logging
-from datetime import datetime
 from uuid import UUID
 
 import redis
@@ -51,8 +50,8 @@ class AudioProcessingRepository:
                     dynamic_audio_url=item.get("dynamic_audio_url"),
                     smooth_audio_url=item.get("smooth_audio_url"),
                     manual_audio_url=item.get("manual_audio_url"),
-                    created_at=datetime.fromisoformat(item["created_at"]),
-                    updated_at=datetime.fromisoformat(item["updated_at"]),
+                    created_at=item["created_at"],
+                    updated_at=item["updated_at"],
                 )
                 for item in cached_audio_processings
             ]
@@ -88,8 +87,8 @@ class AudioProcessingRepository:
                 dynamic_audio_url=row.dynamic_audio_url,
                 smooth_audio_url=row.smooth_audio_url,
                 manual_audio_url=row.manual_audio_url,
-                created_at=datetime.fromisoformat(row.created_at),
-                updated_at=datetime.fromisoformat(row.updated_at),
+                created_at=row.created_at,
+                updated_at=row.updated_at,
                 user=None,  # User will be set later if needed
             )
             for row in audio_processings
@@ -127,12 +126,8 @@ class AudioProcessingRepository:
                 dynamic_audio_url=cached_audio_processing.get("dynamic_audio_url"),
                 smooth_audio_url=cached_audio_processing.get("smooth_audio_url"),
                 manual_audio_url=cached_audio_processing.get("manual_audio_url"),
-                created_at=datetime.fromisoformat(
-                    cached_audio_processing["created_at"]
-                ),
-                updated_at=datetime.fromisoformat(
-                    cached_audio_processing["updated_at"]
-                ),
+                created_at=cached_audio_processing["created_at"],
+                updated_at=cached_audio_processing["updated_at"],
             )
 
         query = text("""
@@ -158,8 +153,8 @@ class AudioProcessingRepository:
             dynamic_audio_url=audio_processing.dynamic_audio_url,
             smooth_audio_url=audio_processing.smooth_audio_url,
             manual_audio_url=audio_processing.manual_audio_url,
-            created_at=datetime.fromisoformat(audio_processing.created_at),
-            updated_at=datetime.fromisoformat(audio_processing.updated_at),
+            created_at=audio_processing.created_at,
+            updated_at=audio_processing.updated_at,
         )
 
         # Cache the audio processing
