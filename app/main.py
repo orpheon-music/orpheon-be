@@ -1,22 +1,21 @@
 import asyncio
-import os
-import uuid
-from io import BytesIO
 from typing import Annotated, Literal
-from uuid import uuid5
 
 import redis
 import uvicorn
-import yt_dlp
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import UUID5, BaseModel
+from pydantic import UUID5
 
 from app.config.database import check_database_connection
 from app.config.logging import setup_logging
+from app.config.rabbit_mq import (
+    connect_rabbit_mq,
+    disconnect_rabbit_mq,
+)
 from app.config.redis import (
     check_redis_connection,
     close_redis_connection,
@@ -35,7 +34,6 @@ from app.dto.audio_processing_dto import (
 from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
 from app.infra.external_services.rabbit_mq_service import (
     AsyncAudioConsumer,
-    RabbitMQService,
 )
 from app.infra.external_services.s3_service import S3Service
 from app.service.audio_processing_service import (
@@ -83,9 +81,8 @@ async def lifespan(
         logger.error(f"Redis connection error: {e}")
 
     # Check RabbitMQ connection
-    app.state.queue_service = RabbitMQService()
     try:
-        await app.state.queue_service.connect()
+        await connect_rabbit_mq()
         logger.info("RabbitMQ connection established")
     except Exception as e:
         logger.error(f"RabbitMQ connection error: {e}")
@@ -121,9 +118,8 @@ async def lifespan(
         logger.info("Background consumer stopped")
 
     # Disconnect from RabbitMQ
-    if hasattr(app.state, "queue_service"):
-        await app.state.queue_service.disconnect()
-        logger.info("Disconnected from RabbitMQ")
+    await disconnect_rabbit_mq()
+    logger.info("Disconnected from RabbitMQ")
 
     # Close Redis connection
     await close_redis_connection()
@@ -306,26 +302,6 @@ async def update_audio_processing(
 
 
 @app.post(
-    "/api/v1/files/upload",
-    tags=["Files"],
-    summary="Upload File",
-    status_code=status.HTTP_201_CREATED,
-)
-async def upload_file(
-    file: Annotated[UploadFile, File()], s3_service: S3Service = Depends(get_s3_client)
-):
-    data = await file.read()
-    print(f"Received file: {file.filename}, size: {len(data)} bytes")
-    file_content = BytesIO(data)
-    if not file_content:
-        return {"error": "No file content provided"}
-    file_name = file.filename or "uploaded_file"
-    bucket = "ahargunyllib-s3-testing"
-    file_url = await s3_service.upload_file(file_content, file_name, bucket)
-    return {"file_url": file_url}
-
-
-@app.post(
     "/api/v1/files/download",
     tags=["Files"],
     summary="Download File",
@@ -365,91 +341,6 @@ async def download_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to download file from S3.",
         ) from e
-
-
-class DownloadYTRequest(BaseModel):
-    url: str
-
-
-# Blocking function to run in a thread
-def download_audio(url: str, output_dir: str = "/tmp") -> str:
-    params = {  # type: ignore
-        "format": "bestaudio/best",
-        "noplaylist": True,
-        "outtmpl": f"{output_dir}/%(title)s-%(id)s.%(ext)s",
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "192",
-            }
-        ],
-        "quiet": True,
-        "no_warnings": True,
-    }
-
-    with yt_dlp.YoutubeDL(params) as ydl:  # type: ignore
-        info = ydl.extract_info(url, download=True)
-        # Get the actual file path of the post-processed file
-        file_path = info["requested_downloads"][0]["filepath"]  # type: ignore
-        return file_path  # type: ignore
-
-
-@app.post(
-    "/api/v1/download-yt-audio",
-    tags=["Files"],
-    summary="Download YouTube Audio",
-    status_code=status.HTTP_201_CREATED,
-)
-async def download_youtube_audio(
-    req: DownloadYTRequest,
-    s3_service: S3Service = Depends(get_s3_client),
-):
-    url = req.url.strip()
-    print(f"Received YouTube URL: {url}")
-
-    try:
-        # Run blocking yt_dlp in thread pool
-        file_path = await asyncio.to_thread(download_audio, url)
-    except Exception as e:
-        print(f"Error downloading audio: {e}")
-        raise HTTPException(
-            status_code=400, detail="Failed to download audio from YouTube."
-        ) from e
-
-    # Upload to S3
-    bucket = "ahargunyllib-s3-testing"
-    try:
-        with open(file_path, "rb") as f:
-            file_content = BytesIO(f.read())
-
-        file_name = os.path.basename(file_path)
-        file_url = await s3_service.upload_file(file_content, file_name, bucket)
-    finally:
-        # Always clean up
-        try:
-            os.remove(file_path)
-        except Exception as cleanup_error:
-            print(f"Warning: failed to delete local file {file_path}: {cleanup_error}")
-
-    return {"file_url": file_url}
-
-
-@app.post(
-    "/api/v1/audio-processings/jobs",
-    tags=["Audio Processing Jobs"],
-    summary="Create Audio Processing Job",
-)
-async def create_job():
-    # Create job
-    job_id = uuid5(uuid.NAMESPACE_DNS, "audio_processing_job")
-
-    # Publish to queue
-    await app.state.queue_service.publish_job(job_id)
-
-    return {
-        "job_id": str(job_id),
-    }
 
 
 def main():

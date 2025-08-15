@@ -1,13 +1,18 @@
+import asyncio
+import os
 import re
 import uuid
 from datetime import datetime
+from io import BytesIO
 from uuid import uuid5
 
 import mutagen.flac as mutagenFLAC
 import mutagen.mp3 as mutagenMP3
 import mutagen.wave as mutagenWAVE
+import yt_dlp
 from fastapi import Depends, HTTPException, status
 
+from app.config.rabbit_mq import get_rabbit_mq_service
 from app.config.s3 import get_s3_client
 from app.dto.audio_processing_dto import (
     AudioProcessingResponse,
@@ -22,6 +27,7 @@ from app.dto.audio_processing_dto import (
     UpdateAudioProcessingRequest,
 )
 from app.dto.pagination_dto import PaginationResponse
+from app.infra.external_services.rabbit_mq_service import RabbitMQService
 from app.infra.external_services.s3_service import S3Service
 from app.model.audio_processing_model import AudioProcessing
 from app.repository.audio_processing_repository import (
@@ -35,9 +41,11 @@ class AudioProcessingService:
         self,
         s3_client: S3Service,
         audio_processing_repository: AudioProcessingRepository,
+        rabbitmq_service: RabbitMQService,
     ):
         self.audio_processing_repository = audio_processing_repository
         self.s3_client = s3_client
+        self.rabbitmq_service = rabbitmq_service
 
     async def process_audio(
         self, req: CreateAudioProcessingRequest
@@ -183,7 +191,37 @@ class AudioProcessingService:
             updated_at=datetime.now(),
         )
 
+        voice_file_data = await req.voice_file.read()
+        voice_file_content = BytesIO(voice_file_data)
+        voice_file_filename = f"{id}-voice.{req.voice_file.filename.split('.')[-1]}"  # type: ignore
+        await self.s3_client.upload_file(
+            voice_file_content, voice_file_filename, "ahargunyllib-s3-testing"
+        )
+
+        instrument_file_data = await req.instrument_file.read()
+        instrument_file_content = BytesIO(instrument_file_data)
+        instrument_file_filename = (
+            f"{id}-instrument.{req.instrument_file.filename.split('.')[-1]}"  # type: ignore
+        )
+        await self.s3_client.upload_file(
+            instrument_file_content, instrument_file_filename, "ahargunyllib-s3-testing"
+        )
+
+        reference_file_path = await asyncio.to_thread(download_audio, req.reference_url)
+
+        with open(reference_file_path, "rb") as f:
+            file_content = BytesIO(f.read())
+
+        reference_file_name = f"{id}-reference.mp3"
+        await self.s3_client.upload_file(
+            file_content, reference_file_name, "ahargunyllib-s3-testing"
+        )
+
+        os.remove(reference_file_path)
+
         await self.audio_processing_repository.create_audio_processing(audio_processing)
+
+        await self.rabbitmq_service.publish_job(audio_processing.id)
 
         # Clear cache for the user
         cache_key = f"user:{req.user_id}:audio_processings"
@@ -356,8 +394,34 @@ def get_audio_processing_service(
     audio_processing_repository: AudioProcessingRepository = Depends(
         get_audio_processing_repository
     ),
+    rabbitmq_service: RabbitMQService = Depends(get_rabbit_mq_service),
 ) -> AudioProcessingService:
     return AudioProcessingService(
         s3_client=s3_client,
         audio_processing_repository=audio_processing_repository,
+        rabbitmq_service=rabbitmq_service,
     )
+
+
+# # Blocking function to run in a thread
+def download_audio(url: str, output_dir: str = "/tmp") -> str:
+    params = {  # type: ignore
+        "format": "bestaudio/best",
+        "noplaylist": True,
+        "outtmpl": f"{output_dir}/%(title)s-%(id)s.%(ext)s",
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            }
+        ],
+        "quiet": True,
+        "no_warnings": True,
+    }
+
+    with yt_dlp.YoutubeDL(params) as ydl:  # type: ignore
+        info = ydl.extract_info(url, download=True)
+        # Get the actual file path of the post-processed file
+        file_path = info["requested_downloads"][0]["filepath"]  # type: ignore
+        return file_path  # type: ignore
