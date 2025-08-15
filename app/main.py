@@ -1,9 +1,20 @@
 import asyncio
+import time
+from collections.abc import Awaitable, Callable
 from typing import Annotated, Literal
 
 import redis
 import uvicorn
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.concurrency import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -155,6 +166,28 @@ async def get_current_user(
 ) -> UserResponse:
     token = credentials.credentials
     return await auth_svc.get_session(token)
+
+
+@app.middleware("http")
+async def log_request_duration(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+):
+    start_time = time.perf_counter()
+
+    response = await call_next(request)
+
+    duration = (time.perf_counter() - start_time) * 1000  # in ms
+
+    logger.info(
+        "%s - %s %s - %d - %.2f ms",
+        request.client.host if request.client else "unknown ip",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration,
+    )
+
+    return response
 
 
 @app.get("/", tags=["Root"], summary="Root endpoint")
