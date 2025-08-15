@@ -311,7 +311,7 @@ async def download_file(
     url: str,
     s3_service: S3Service = Depends(get_s3_client),
 ):
-    print(f"Downloading file: {url}")
+    logger.info(f"Downloading file: {url}")
     try:
         # Parse the URL to get bucket and file name
         if not url.startswith("https://") and not url.startswith("http://"):
@@ -336,7 +336,7 @@ async def download_file(
             status_code=status.HTTP_200_OK,
         )
     except Exception as e:
-        print(f"Error downloading file: {e}")
+        logger.warning(f"Error downloading file: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to download file from S3.",
