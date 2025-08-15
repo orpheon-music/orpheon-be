@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import re
 import uuid
@@ -35,6 +36,8 @@ from app.repository.audio_processing_repository import (
     get_audio_processing_repository,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class AudioProcessingService:
     def __init__(
@@ -53,6 +56,7 @@ class AudioProcessingService:
         timestamp = datetime.now().isoformat()
 
         # validate voice_file
+        logger.info("Validating voice file")
         if not req.voice_file:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -63,6 +67,7 @@ class AudioProcessingService:
         if req.voice_file.filename and not req.voice_file.filename.endswith(
             (".wav", ".mp3", ".flac")
         ):
+            logger.warning(f"Unsupported file format: {req.voice_file.filename}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Only .wav, .mp3, .flac files are supported",
@@ -70,6 +75,7 @@ class AudioProcessingService:
 
         # Check if the file size is less than 100MB
         if req.voice_file.size and req.voice_file.size > 100 * 1024 * 1024:  # 100MB
+            logger.warning(f"File size too large: {req.voice_file.size} bytes")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File size must be less than 100MB",
@@ -87,12 +93,14 @@ class AudioProcessingService:
         if (
             voice_file_mutagen and voice_file_mutagen.info.length > 10 * 60  # type: ignore # 10 minutes
         ):
+            logger.warning(f"File duration: {voice_file_mutagen.info.length}")  # type: ignore
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File duration must be less than 10 minutes",
             )
 
         # validate instrument_file
+        logger.info("Validating instrument file")
         if not req.instrument_file:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -103,6 +111,9 @@ class AudioProcessingService:
         if req.instrument_file.filename and not req.instrument_file.filename.endswith(
             (".wav", ".mp3", ".flac")
         ):
+            logger.warning(
+                f"Unsupported instrument file format: {req.instrument_file.filename}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Only .wav, .mp3, .flac files are supported",
@@ -112,6 +123,7 @@ class AudioProcessingService:
         if (
             req.instrument_file.size and req.instrument_file.size > 100 * 1024 * 1024
         ):  # 100MB
+            logger.warning(f"Instrument file size: {req.instrument_file.size}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File size must be less than 100MB",
@@ -135,6 +147,9 @@ class AudioProcessingService:
         if (
             instrument_file_mutagen and instrument_file_mutagen.info.length > 10 * 60  # type: ignore # 10 minutes
         ):
+            logger.warning(
+                f"Instrument file duration: {instrument_file_mutagen.info.length}"  # type: ignore
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File duration must be less than 10 minutes",
@@ -152,6 +167,7 @@ class AudioProcessingService:
             r"^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[A-Za-z0-9_-]{11}(&.*)?$"
         )
         if not pattern.match(req.reference_url):
+            logger.warning(f"Invalid Youtube URL: {req.reference_url}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid Youtube URL",
@@ -191,49 +207,11 @@ class AudioProcessingService:
             updated_at=datetime.now(),
         )
 
-        voice_file_data = await req.voice_file.read()
-        voice_file_content = BytesIO(voice_file_data)
-        voice_file_filename = f"{id}-voice.{req.voice_file.filename.split('.')[-1]}"  # type: ignore
-        voice_file_url = await self.s3_client.upload_file(
-            voice_file_content, voice_file_filename, "ahargunyllib-s3-testing"
-        )
-
-        instrument_file_data = await req.instrument_file.read()
-        instrument_file_content = BytesIO(instrument_file_data)
-        instrument_file_filename = (
-            f"{id}-instrument.{req.instrument_file.filename.split('.')[-1]}"  # type: ignore
-        )
-        instrument_file_url = await self.s3_client.upload_file(
-            instrument_file_content, instrument_file_filename, "ahargunyllib-s3-testing"
-        )
-
-        reference_file_path = await asyncio.to_thread(download_audio, req.reference_url)
-
-        with open(reference_file_path, "rb") as f:
-            file_content = BytesIO(f.read())
-
-        reference_file_name = f"{id}-reference.mp3"
-        reference_file_url = await self.s3_client.upload_file(
-            file_content, reference_file_name, "ahargunyllib-s3-testing"
-        )
-
-        os.remove(reference_file_path)
-
+        logger.info(f"Creating audio processing record with ID: {audio_processing.id}")
         await self.audio_processing_repository.create_audio_processing(audio_processing)
+        logger.info("Audio processing record created successfully")
 
-        await self.rabbitmq_service.publish_job(
-            audio_processing.id,
-            "normal",
-            {
-                "voice_file_url": voice_file_url,
-                "instrument_file_url": instrument_file_url,
-                "reference_file_url": reference_file_url,
-            },
-        )
-
-        # Clear cache for the user
-        cache_key = f"user:{req.user_id}:audio_processings"
-        await self.audio_processing_repository.redis.delete(cache_key)
+        asyncio.create_task(self._handle_audio_processing(req, audio_processing))
 
         res = CreateAudioProcessingResponse(
             audio_processing=AudioProcessingResponse(
@@ -250,6 +228,62 @@ class AudioProcessingService:
             )
         )
         return res
+
+    async def _handle_audio_processing(
+        self, req: CreateAudioProcessingRequest, audio_processing: AudioProcessing
+    ) -> None:
+        logger.info("Uploading voice file to S3")
+        voice_file_data = await req.voice_file.read()
+        voice_file_content = BytesIO(voice_file_data)
+        voice_file_filename = (
+            f"{audio_processing.id}-voice.{req.voice_file.filename.split('.')[-1]}"  # type: ignore
+        )
+        voice_file_url = await self.s3_client.upload_file(
+            voice_file_content, voice_file_filename, "ahargunyllib-s3-testing"
+        )
+        logger.info("Voice file uploaded to S3")
+
+        logger.info("Uploading instrument file to S3")
+        instrument_file_data = await req.instrument_file.read()
+        instrument_file_content = BytesIO(instrument_file_data)
+        instrument_file_filename = f"{audio_processing.id}-instrument.{req.instrument_file.filename.split('.')[-1]}"  # type: ignore
+        instrument_file_url = await self.s3_client.upload_file(
+            instrument_file_content, instrument_file_filename, "ahargunyllib-s3-testing"
+        )
+        logger.info("Instrument file uploaded to S3")
+
+        logger.info("Downloading reference audio from YouTube")
+        reference_file_path = await asyncio.to_thread(download_audio, req.reference_url)
+
+        with open(reference_file_path, "rb") as f:
+            file_content = BytesIO(f.read())
+
+        reference_file_name = f"{audio_processing.id}-reference.mp3"
+        reference_file_url = await self.s3_client.upload_file(
+            file_content, reference_file_name, "ahargunyllib-s3-testing"
+        )
+        logger.info("Reference audio downloaded and uploaded to S3")
+        os.remove(reference_file_path)
+        logger.info("Temporary reference audio file removed")
+
+        # Publish job to RabbitMQ
+        logger.info("Publishing job to RabbitMQ")
+        await self.rabbitmq_service.publish_job(
+            audio_processing.id,
+            "normal",
+            {
+                "voice_file_url": voice_file_url,
+                "instrument_file_url": instrument_file_url,
+                "reference_file_url": reference_file_url,
+            },
+        )
+        logger.info("Job published to RabbitMQ successfully")
+
+        # Clear cache for the user
+        logger.info("Clearing cache for the user")
+        cache_key = f"user:{req.user_id}:audio_processings"
+        await self.audio_processing_repository.redis.delete(cache_key)
+        logger.info("Cache cleared successfully")
 
     async def get_library(
         self, query: GetAudioProcessingsQuery, user_id: uuid.UUID

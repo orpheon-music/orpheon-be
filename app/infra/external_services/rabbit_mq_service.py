@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import uuid
 
 from aio_pika import DeliveryMode, ExchangeType, Message, connect_robust
@@ -12,6 +13,8 @@ from aio_pika.abc import (
 )
 
 from app.config.settings import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class RabbitMQService:
@@ -172,6 +175,8 @@ class AsyncAudioConsumer:
     async def _process_message(self, message: AbstractIncomingMessage):
         """Process incoming message from main queue"""
         try:
+            logger.info(f"Received message: {message.body.decode()}")
+
             # Parse message
             body = json.loads(message.body.decode())
             job_id = uuid.UUID(body["job_id"])
@@ -181,7 +186,7 @@ class AsyncAudioConsumer:
             instrument_file_url = body.get("instrument_file_url")
             reference_file_url = body.get("reference_file_url")
 
-            print(
+            logger.info(
                 f"Processing job {job_id} with retry count {retry_count} - "
                 f"Voice: {voice_file_url}, Instrument: {instrument_file_url}, "
                 f"Reference: {reference_file_url}"
