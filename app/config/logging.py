@@ -62,7 +62,7 @@ def setup_logging():
             },
             "uvicorn.access": {
                 "handlers": ["default"],
-                "level": "INFO",
+                "level": "CRITICAL",
                 "propagate": False,
             },
         },
