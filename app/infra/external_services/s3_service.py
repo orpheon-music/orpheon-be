@@ -46,3 +46,11 @@ class S3Service:
             Params={"Bucket": bucket, "Key": file_name},
             ExpiresIn=expiration,
         )
+
+    async def download_file(
+        self, bucket: str, file_name: str
+    ) -> BytesIO:
+        file_content = BytesIO()
+        self.client.download_fileobj(bucket, file_name, file_content)
+        file_content.seek(0)
+        return file_content
