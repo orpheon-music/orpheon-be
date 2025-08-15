@@ -1,7 +1,11 @@
+import re
 import uuid
 from datetime import datetime
 from uuid import uuid5
 
+import mutagen.flac as mutagenFLAC
+import mutagen.mp3 as mutagenMP3
+import mutagen.wave as mutagenWAVE
 from fastapi import Depends, HTTPException, status
 
 from app.config.s3 import get_s3_client
@@ -40,6 +44,111 @@ class AudioProcessingService:
     ) -> CreateAudioProcessingResponse:
         timestamp = datetime.now().isoformat()
 
+        # validate voice_file
+        if not req.voice_file:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Voice file is required",
+            )
+
+        # only support .wav, .mp3, .flac
+        if req.voice_file.filename and not req.voice_file.filename.endswith(
+            (".wav", ".mp3", ".flac")
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only .wav, .mp3, .flac files are supported",
+            )
+
+        # Check if the file size is less than 100MB
+        if req.voice_file.size and req.voice_file.size > 100 * 1024 * 1024:  # 100MB
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File size must be less than 100MB",
+            )
+
+        # Check if the file duration is less than 10 minutes
+        voice_file_mutagen = None
+        if req.voice_file.filename and req.voice_file.filename.endswith(".mp3"):
+            voice_file_mutagen = mutagenMP3.Open(req.voice_file.file)
+        elif req.voice_file.filename and req.voice_file.filename.endswith(".flac"):
+            voice_file_mutagen = mutagenFLAC.Open(req.voice_file.file)
+        elif req.voice_file.filename and req.voice_file.filename.endswith(".wav"):
+            voice_file_mutagen = mutagenWAVE.Open(req.voice_file.file)
+
+        if (
+            voice_file_mutagen and voice_file_mutagen.info.length > 10 * 60  # type: ignore # 10 minutes
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File duration must be less than 10 minutes",
+            )
+
+        # validate instrument_file
+        if not req.instrument_file:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Instrument file is required",
+            )
+
+        # only support .wav, .mp3, .flac
+        if req.instrument_file.filename and not req.instrument_file.filename.endswith(
+            (".wav", ".mp3", ".flac")
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only .wav, .mp3, .flac files are supported",
+            )
+
+        # Check if the file size is less than 100MB
+        if (
+            req.instrument_file.size and req.instrument_file.size > 100 * 1024 * 1024
+        ):  # 100MB
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File size must be less than 100MB",
+            )
+
+        # Check if the file duration is less than 10 minutes
+        instrument_file_mutagen = None
+        if req.instrument_file.filename and req.instrument_file.filename.endswith(
+            ".mp3"
+        ):
+            instrument_file_mutagen = mutagenMP3.Open(req.instrument_file.file)
+        elif req.instrument_file.filename and req.instrument_file.filename.endswith(
+            ".flac"
+        ):
+            instrument_file_mutagen = mutagenFLAC.Open(req.instrument_file.file)
+        elif req.instrument_file.filename and req.instrument_file.filename.endswith(
+            ".wav"
+        ):
+            instrument_file_mutagen = mutagenWAVE.Open(req.instrument_file.file)
+
+        if (
+            instrument_file_mutagen and instrument_file_mutagen.info.length > 10 * 60  # type: ignore # 10 minutes
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File duration must be less than 10 minutes",
+            )
+
+        # validate reference_url
+        if not req.reference_url:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Reference URL is required",
+            )
+
+        # Check if the reference URL is a valid Youtube URL
+        pattern = re.compile(
+            r"^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[A-Za-z0-9_-]{11}(&.*)?$"
+        )
+        if not pattern.match(req.reference_url):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid Youtube URL",
+            )
+
         # Create UUID
         id = uuid5(
             namespace=uuid.NAMESPACE_DNS,
@@ -48,13 +157,15 @@ class AudioProcessingService:
 
         name = req.voice_file.filename or "audio"
         size = req.voice_file.size or 0
-        duration = 0  # Placeholder, actual duration should be calculated
+        duration = int(
+            voice_file_mutagen.info.length if voice_file_mutagen else 0  # type: ignore
+        )
         format = (
             req.voice_file.filename.split(".")[-1]
             if req.voice_file.filename
             else "unknown"
         )
-        bitrate = 128  # Placeholder, actual bitrate should be calculated
+        bitrate: int = voice_file_mutagen.info.bitrate if voice_file_mutagen else 0  # type: ignore
 
         audio_processing = AudioProcessing(
             id=id,
@@ -63,18 +174,16 @@ class AudioProcessingService:
             size=size,
             duration=duration,
             format=format,
-            bitrate=bitrate,
-            standard_audio_url="https://is3.cloudhost.id/ahargunyllib-s3-testing/standard.wav",
-            dynamic_audio_url="https://is3.cloudhost.id/ahargunyllib-s3-testing/dynamic.wav",
-            smooth_audio_url="https://is3.cloudhost.id/ahargunyllib-s3-testing/standard.wav",
+            bitrate=bitrate,  # type: ignore
+            standard_audio_url=None,
+            dynamic_audio_url=None,
+            smooth_audio_url=None,
             manual_audio_url=None,
             created_at=datetime.now(),
             updated_at=datetime.now(),
         )
 
         await self.audio_processing_repository.create_audio_processing(audio_processing)
-
-        await self.audio_processing_repository.update_audio_processing(audio_processing)
 
         # Clear cache for the user
         cache_key = f"user:{req.user_id}:audio_processings"
