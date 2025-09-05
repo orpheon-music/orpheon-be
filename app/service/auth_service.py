@@ -69,7 +69,7 @@ class AuthService:
 
         # Create tokens
         settings = Settings()
-        expire = datetime.now(UTC) + timedelta(minutes=settings.JWT_EXPIRES_IN)
+        expire = datetime.now(UTC) + timedelta(hours=settings.JWT_EXPIRES_IN)
         payload: dict[str, Any] = {"user_id": str(user.id), "exp": expire}  #
         access_token = jwt.encode(  # type: ignore
             payload=payload,
