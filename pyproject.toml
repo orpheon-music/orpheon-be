@@ -61,3 +61,11 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "tests/**/*" = ["ARG", "FBT"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["echo_pb2", "echo_pb2_grpc"]  # and any other generated modules
+package-dir = {"" = "gen"}

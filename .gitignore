@@ -194,7 +194,7 @@ cython_debug/
 .cursorindexingignore
 
 # gRPC Python codegen
-app/infra/external_services/proto_gen/
+gen/
 **/*_pb2.py
 **/*_pb2.pyi
 **/*_pb2_grpc.py

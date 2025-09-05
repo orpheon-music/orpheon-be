@@ -5,7 +5,7 @@ import grpc
 from grpc import aio
 
 from app.config.settings import get_settings
-from app.infra.external_services.proto_gen import echo_pb2, echo_pb2_grpc
+from gen import echo_pb2, echo_pb2_grpc
 
 logger = logging.getLogger(__name__)
 

@@ -12,6 +12,12 @@ COPY . .
 
 RUN uv sync --frozen
 
+RUN uv run python -m grpc_tools.protoc \
+-I proto \
+--python_out=gen \
+--grpc_python_out=gen \
+$(find proto -name "*.proto")
+
 FROM python:3.13-slim AS production
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/

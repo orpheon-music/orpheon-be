@@ -1,14 +1,14 @@
 services:
-  # server:
-  #   build: .
-  #   ports:
-  #     - "8000:8000"
-  #   networks:
-  #     - network
-  #   restart: on-failure
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
+  server:
+    build: .
+    ports:
+      - "8000:8000"
+    networks:
+      - network
+    restart: on-failure
+    depends_on:
+      db:
+        condition: service_healthy
   db:
     image: postgres:16.1-alpine
     ports:
