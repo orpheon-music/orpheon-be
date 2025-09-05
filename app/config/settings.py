@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     ML_SERVICE_HOST: str = "localhost"
     ML_SERVICE_PORT: int = 5000
 
+    # Other
+    API_KEY: str = "your_api_key"
+
     class Config:
         env_file = ".env"
 
