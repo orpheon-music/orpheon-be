@@ -9,6 +9,7 @@ from fastapi import (
     Depends,
     FastAPI,
     File,
+    Form,
     HTTPException,
     Request,
     Response,
@@ -322,7 +323,7 @@ async def get_audio_processing_by_id(
 async def create_audio_processing(
     voice_file: Annotated[UploadFile, File()],
     instrument_file: Annotated[UploadFile, File()],
-    reference_url: Annotated[str, File()],
+    reference_url: Annotated[str, Form()],
     current_user: UserResponse = Depends(get_current_user),
     audio_processing_svc: AudioProcessingService = Depends(
         get_audio_processing_service

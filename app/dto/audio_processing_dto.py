@@ -1,7 +1,7 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import UploadFile
+from fastapi import Form, UploadFile
 from fastapi.params import File
 from pydantic import BaseModel
 
@@ -31,7 +31,7 @@ class AudioProcessingResponse(BaseModel):
 class CreateAudioProcessingRequest(BaseModel):
     voice_file: Annotated[UploadFile, File()]
     instrument_file: Annotated[UploadFile, File()]
-    reference_url: Annotated[str, File()]
+    reference_url: Annotated[str, Form()]
 
     user_id: UUID
 

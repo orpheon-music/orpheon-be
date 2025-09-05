@@ -87,7 +87,7 @@ class AudioProcessingService:
                 detail="File size must be less than 100MB",
             )
         logger.info(
-            f"Voice file size: {req.voice_file.size} bytes, {req.voice_file.size / (1024 * 1024):.2f} MB"
+            f"Voice file size: {req.voice_file.size} bytes, {req.voice_file.size / (1024 * 1024) if req.voice_file.size else 0:.2f} MB"
         )  # type: ignore
 
         # Check if the file duration is less than 10 minutes
