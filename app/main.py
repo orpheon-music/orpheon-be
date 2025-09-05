@@ -37,6 +37,7 @@ from app.config.redis import (
     close_redis_connection,
 )
 from app.config.s3 import get_s3_client
+from app.config.settings import get_settings
 from app.dto.audio_processing_dto import (
     CreateAudioProcessingRequest,
     CreateAudioProcessingResponse,
@@ -46,6 +47,8 @@ from app.dto.audio_processing_dto import (
     GetAudioProcessingsResponse,
     UpdateAudioProcessingQuery,
     UpdateAudioProcessingRequest,
+    UpdateAudioProcessingResultParams,
+    UpdateAudioProcessingResultRequest,
 )
 from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
 from app.infra.external_services.ml_service import MLService
@@ -103,7 +106,6 @@ async def lifespan(
         logger.info("RabbitMQ connection established")
     except Exception as e:
         logger.error(f"RabbitMQ connection error: {e}")
-
 
     # Check ML Service connection
     try:
@@ -188,6 +190,21 @@ async def get_current_user(
     token = credentials.credentials
     return await auth_svc.get_session(token)
 
+# api key middleware
+async def api_key_middleware(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
+    settings = get_settings()
+    api_key = request.headers.get("X-API-KEY")
+
+    if not api_key or api_key != f"Key {settings.API_KEY}":
+        return Response(
+            content="Unauthorized",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+    response = await call_next(request)
+    return response
 
 @app.middleware("http")
 async def log_request_duration(
@@ -355,6 +372,40 @@ async def update_audio_processing(
     return
 
 
+@app.put(
+    "/api/v1/audio-processing/{audio_processing_id}/result",
+    tags=["Audio Processing"],
+    summary="Update Audio Processing Result Files",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def update_audio_processing_result_files(
+    audio_processing_id: UUID5,
+    standard_file: Annotated[UploadFile, File()],
+    dynamic_file: Annotated[UploadFile, File()],
+    smooth_file: Annotated[UploadFile, File()],
+    audio_processing_svc: AudioProcessingService = Depends(
+        get_audio_processing_service
+    ),
+    _api_key_check: Response = Depends(api_key_middleware),
+):
+    req = UpdateAudioProcessingResultRequest(
+        standard_file=standard_file,
+        dynamic_file=dynamic_file,
+        smooth_file=smooth_file,
+    )
+
+    params = UpdateAudioProcessingResultParams(
+        audio_processing_id=audio_processing_id,
+    )
+
+    await audio_processing_svc.update_audio_processing_result(
+        req=req,
+        params=params,
+    )
+
+    return
+
+
 @app.post(
     "/api/v1/files/download",
     tags=["Files"],
@@ -396,13 +447,13 @@ async def download_file(
             detail="Failed to download file from S3.",
         ) from e
 
+
 @app.get("/health", tags=["Health"], summary="Health Check")
-async def health_check(
-    ml_service: MLService = Depends(get_ml_service)
-):
+async def health_check(ml_service: MLService = Depends(get_ml_service)):
     await ml_service.ping()
 
     return {"status": "healthy"}
+
 
 def main():
     uvicorn.run(

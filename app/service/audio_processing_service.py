@@ -26,6 +26,8 @@ from app.dto.audio_processing_dto import (
     GetAudioProcessingsResponse,
     UpdateAudioProcessingQuery,
     UpdateAudioProcessingRequest,
+    UpdateAudioProcessingResultParams,
+    UpdateAudioProcessingResultRequest,
 )
 from app.dto.pagination_dto import PaginationResponse
 from app.infra.external_services.rabbit_mq_service import RabbitMQService
@@ -65,7 +67,7 @@ class AudioProcessingService:
         logger.info("Voice file provided")
 
         # only support .wav, .mp3, .flac
-        if not req.voice_file.filename.endswith( # type: ignore
+        if not req.voice_file.filename.endswith(  # type: ignore
             (".wav", ".mp3", ".flac")
         ):
             logger.warning(f"Unsupported file format: {req.voice_file.filename}")
@@ -73,7 +75,7 @@ class AudioProcessingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Only .wav, .mp3, .flac files are supported",
             )
-        logger.info(f"Voice file format is {req.voice_file.filename.split('.')[-1]}") # type: ignore
+        logger.info(f"Voice file format is {req.voice_file.filename.split('.')[-1]}")  # type: ignore
 
         # Check if the file size is less than 100MB
         if req.voice_file.size > 100 * 1024 * 1024:  # type: ignore # 100MB
@@ -82,7 +84,9 @@ class AudioProcessingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="File size must be less than 100MB",
             )
-        logger.info(f"Voice file size: {req.voice_file.size} bytes, {req.voice_file.size / (1024 * 1024):.2f} MB")  # type: ignore
+        logger.info(
+            f"Voice file size: {req.voice_file.size} bytes, {req.voice_file.size / (1024 * 1024):.2f} MB"
+        )  # type: ignore
 
         # Check if the file duration is less than 10 minutes
         voice_file_mutagen = None
@@ -113,7 +117,7 @@ class AudioProcessingService:
         logger.info("Instrument file provided")
 
         # only support .wav, .mp3, .flac
-        if not req.instrument_file.filename.endswith( # type: ignore
+        if not req.instrument_file.filename.endswith(  # type: ignore
             (".wav", ".mp3", ".flac")
         ):
             logger.warning(
@@ -129,7 +133,7 @@ class AudioProcessingService:
 
         # Check if the file size is less than 100MB
         if (
-            req.instrument_file.size > 100 * 1024 * 1024 # type: ignore
+            req.instrument_file.size > 100 * 1024 * 1024  # type: ignore
         ):  # 100MB
             logger.warning(f"Instrument file size: {req.instrument_file.size}")
             raise HTTPException(
@@ -452,6 +456,57 @@ class AudioProcessingService:
 
         # Save the updated audio processing
         await self.audio_processing_repository.update_audio_processing(audio_processing)
+
+    async def update_audio_processing_result(
+        self,
+        params: UpdateAudioProcessingResultParams,
+        req: UpdateAudioProcessingResultRequest,
+    ) -> None:
+        """Update audio processing with result files from ML service"""
+        audio_processing = (
+            await self.audio_processing_repository.get_audio_processing_by_id(
+                audio_processing_id=params.audio_processing_id
+            )
+        )
+        if not audio_processing:
+            raise ValueError("Audio processing not found")
+
+        # Upload standard file to S3
+        standard_file_data = await req.standard_file.read()
+        standard_file_content = BytesIO(standard_file_data)
+        standard_file_filename = f"{audio_processing.id}-standard.{req.standard_file.filename.split('.')[-1]}"  # type: ignore
+        standard_file_url = await self.s3_client.upload_file(
+            standard_file_content, standard_file_filename, "ahargunyllib-s3-testing"
+        )
+        audio_processing.standard_audio_url = standard_file_url
+        logger.info("Standard audio file uploaded to S3")
+
+        # Upload dynamic file to S3
+        dynamic_file_data = await req.dynamic_file.read()
+        dynamic_file_content = BytesIO(dynamic_file_data)
+        dynamic_file_filename = (
+            f"{audio_processing.id}-dynamic.{req.dynamic_file.filename.split('.')[-1]}"  # type: ignore
+        )
+        dynamic_file_url = await self.s3_client.upload_file(
+            dynamic_file_content, dynamic_file_filename, "ahargunyllib-s3-testing"
+        )
+        audio_processing.dynamic_audio_url = dynamic_file_url
+        logger.info("Dynamic audio file uploaded to S3")
+
+        # Upload smooth file to S3
+        smooth_file_data = await req.smooth_file.read()
+        smooth_file_content = BytesIO(smooth_file_data)
+        smooth_file_filename = (
+            f"{audio_processing.id}-smooth.{req.smooth_file.filename.split('.')[-1]}"  # type: ignore
+        )
+        smooth_file_url = await self.s3_client.upload_file(
+            smooth_file_content, smooth_file_filename, "ahargunyllib-s3-testing"
+        )
+        audio_processing.smooth_audio_url = smooth_file_url
+        logger.info("Smooth audio file uploaded to S3")
+
+        await self.audio_processing_repository.update_audio_processing(audio_processing)
+        logger.info("Audio processing record updated successfully")
 
 
 def get_audio_processing_service(

@@ -46,6 +46,13 @@ class UpdateAudioProcessingRequest(BaseModel):
     manual_file: Annotated[UploadFile | None, File()] = None
     type: Literal["standard", "dynamic", "smooth"] | None = None
 
+class UpdateAudioProcessingResultParams(BaseModel):
+    audio_processing_id: UUID
+
+class UpdateAudioProcessingResultRequest(BaseModel):
+    standard_file: Annotated[UploadFile, File()]
+    dynamic_file: Annotated[UploadFile, File()]
+    smooth_file: Annotated[UploadFile, File()]
 
 class GetAudioProcessingsQuery(BaseModel):
     page: int = 1
