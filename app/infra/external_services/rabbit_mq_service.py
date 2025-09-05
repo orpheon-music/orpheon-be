@@ -12,6 +12,7 @@ from aio_pika.abc import (
     AbstractQueue,
 )
 
+from app.config.ml_service import get_ml_service
 from app.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -132,6 +133,7 @@ class AsyncAudioConsumer:
         self,
     ):
         self.queue_service = RabbitMQService()
+        self.ml_service = get_ml_service()
         self.is_consuming = False
 
     async def start_consuming(self):
@@ -190,6 +192,12 @@ class AsyncAudioConsumer:
                 f"Processing job {job_id} with retry count {retry_count} - "
                 f"Voice: {voice_file_url}, Instrument: {instrument_file_url}, "
                 f"Reference: {reference_file_url}"
+            )
+
+            self.ml_service.process(
+                audio_processing_id=str(job_id),
+                voice_file_url=voice_file_url,  # type: ignore
+                reference_file_url=reference_file_url,  # type: ignore
             )
 
             # Acknowledge message on success

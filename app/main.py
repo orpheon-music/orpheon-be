@@ -26,7 +26,6 @@ from app.config.logging import setup_logging
 from app.config.ml_service import (
     connect_ml_service,
     disconnect_ml_service,
-    get_ml_service,
 )
 from app.config.rabbit_mq import (
     connect_rabbit_mq,
@@ -53,7 +52,6 @@ from app.dto.audio_processing_dto import (
     UpdateAudioProcessingStageRequest,
 )
 from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
-from app.infra.external_services.ml_service import MLService
 from app.infra.external_services.rabbit_mq_service import (
     AsyncAudioConsumer,
 )
@@ -390,7 +388,7 @@ async def update_audio_processing_result_files(
     audio_processing_svc: AudioProcessingService = Depends(
         get_audio_processing_service
     ),
-    _api_key_check: Response = Depends(api_key_middleware),
+    # _api_key_check: Response = Depends(api_key_middleware),
 ):
     req = UpdateAudioProcessingResultRequest(
         standard_file=standard_file,
@@ -422,7 +420,7 @@ async def update_audio_processing_stage(
     audio_processing_svc: AudioProcessingService = Depends(
         get_audio_processing_service
     ),
-    _api_key_check: Response = Depends(api_key_middleware),
+    # _api_key_check: Response = Depends(api_key_middleware),
 ):
     params = UpdateAudioProcessingStageParams(
         audio_processing_id=audio_processing_id,
@@ -480,13 +478,6 @@ async def download_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to download file from S3.",
         ) from e
-
-
-@app.get("/health", tags=["Health"], summary="Health Check")
-async def health_check(ml_service: MLService = Depends(get_ml_service)):
-    await ml_service.ping()
-
-    return {"status": "healthy"}
 
 
 def main():

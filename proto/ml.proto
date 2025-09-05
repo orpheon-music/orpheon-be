@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package ml;
+
+import "google/protobuf/empty.proto";
+
+service MLService {
+  rpc Process (ProcessRequest) returns (google.protobuf.Empty);
+}
+
+message ProcessRequest {
+  string audio_processing_id = 1;
+  string voice_file_url = 2;
+  string reference_file_url = 3;
+}

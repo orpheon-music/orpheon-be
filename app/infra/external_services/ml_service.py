@@ -5,7 +5,7 @@ import grpc
 from grpc import aio
 
 from app.config.settings import get_settings
-from gen import echo_pb2, echo_pb2_grpc
+from gen import ml_pb2, ml_pb2_grpc
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +33,13 @@ class MLService:
                 )
                 self.channel = aio.insecure_channel(ml_service_address)
 
-                if echo_pb2_grpc:
-                    self.stub = echo_pb2_grpc.EchoServiceStub(self.channel)
+                if ml_pb2_grpc:
+                    self.stub = ml_pb2_grpc.MLServiceStub(self.channel)
 
                 # Test the connection
                 await asyncio.wait_for(self.channel.channel_ready(), timeout=5.0)
                 logger.info(f"gRPC client connected to {ml_service_address}")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     "gRPC connection timeout - continuing without gRPC notifications"
                 )
@@ -57,21 +57,25 @@ class MLService:
                 self.stub = None
                 logger.info("gRPC client disconnected")
 
-    async def ping(self) -> bool:
-        """Ping the ML service to check connectivity"""
-        if not self._is_connected() or not echo_pb2:
+    async def process(self, audio_processing_id: str, voice_file_url: str, reference_file_url: str) -> bool:
+        if not self._is_connected() or not ml_pb2:
             logger.debug("gRPC not available, skipping job published notification")
             return False
 
         try:
-            request = echo_pb2.PingRequest(message="ping")
+            request = ml_pb2.ProcessRequest(
+                audio_processing_id=audio_processing_id,
+                voice_file_url=voice_file_url,
+                reference_file_url=reference_file_url,
+            )
 
             # Call with timeout
-            response = await asyncio.wait_for(self.stub.Ping(request), timeout=3.0)
+            response = await asyncio.wait_for(self.stub.Process(request), timeout=3.0)
 
-            logger.info(f"gRPC ping response: {response}")
-        except asyncio.TimeoutError:
-            logger.warning("gRPC timeout pinging ML service")
+            logger.info(f"gRPC process response: {response}")
+            return True
+        except TimeoutError:
+            logger.warning("gRPC timeout processing audio")
             return False
 
     def _is_connected(self) -> bool:

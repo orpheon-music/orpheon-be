@@ -67,5 +67,5 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["echo_pb2", "echo_pb2_grpc"]  # and any other generated modules
+py-modules = ["ml_pb2", "ml_pb2_grpc"]  # and any other generated modules
 package-dir = {"" = "gen"}
