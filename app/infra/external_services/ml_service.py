@@ -69,18 +69,9 @@ class MLService:
             # Call with timeout
             response = await asyncio.wait_for(self.stub.Ping(request), timeout=3.0)
 
-            if response.success:
-                logger.debug("gRPC ping successful")
-                return True
-            else:
-                logger.warning("gRPC ping failed")
-                return False
-
+            logger.info(f"gRPC ping response: {response}")
         except asyncio.TimeoutError:
             logger.warning("gRPC timeout pinging ML service")
-            return False
-        except Exception as e:
-            logger.warning(f"Error pinging ML service: {e}")
             return False
 
     def _is_connected(self) -> bool:

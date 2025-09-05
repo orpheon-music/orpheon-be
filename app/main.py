@@ -23,7 +23,11 @@ from pydantic import UUID5
 
 from app.config.database import check_database_connection
 from app.config.logging import setup_logging
-from app.config.ml_service import connect_ml_service, disconnect_ml_service
+from app.config.ml_service import (
+    connect_ml_service,
+    disconnect_ml_service,
+    get_ml_service,
+)
 from app.config.rabbit_mq import (
     connect_rabbit_mq,
     disconnect_rabbit_mq,
@@ -44,6 +48,7 @@ from app.dto.audio_processing_dto import (
     UpdateAudioProcessingRequest,
 )
 from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
+from app.infra.external_services.ml_service import MLService
 from app.infra.external_services.rabbit_mq_service import (
     AsyncAudioConsumer,
 )
@@ -391,6 +396,13 @@ async def download_file(
             detail="Failed to download file from S3.",
         ) from e
 
+@app.get("/health", tags=["Health"], summary="Health Check")
+async def health_check(
+    ml_service: MLService = Depends(get_ml_service)
+):
+    await ml_service.ping()
+
+    return {"status": "healthy"}
 
 def main():
     uvicorn.run(
