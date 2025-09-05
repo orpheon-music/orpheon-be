@@ -28,6 +28,8 @@ from app.dto.audio_processing_dto import (
     UpdateAudioProcessingRequest,
     UpdateAudioProcessingResultParams,
     UpdateAudioProcessingResultRequest,
+    UpdateAudioProcessingStageParams,
+    UpdateAudioProcessingStageRequest,
 )
 from app.dto.pagination_dto import PaginationResponse
 from app.infra.external_services.rabbit_mq_service import RabbitMQService
@@ -232,6 +234,11 @@ class AudioProcessingService:
         await self.audio_processing_repository.create_audio_processing(audio_processing)
         logger.info("Audio processing record created successfully")
 
+        # Set stage to 0 - Pending
+        await self.audio_processing_repository.set_audio_processing_stage(
+            audio_processing.id, 0
+        )
+
         asyncio.create_task(self._handle_audio_processing(req, audio_processing))
 
         res = CreateAudioProcessingResponse(
@@ -245,6 +252,7 @@ class AudioProcessingService:
                 bitrate=audio_processing.bitrate,
                 standard_audio_url=audio_processing.standard_audio_url,
                 dynamic_audio_url=audio_processing.dynamic_audio_url,
+                stage=0,
                 smooth_audio_url=audio_processing.smooth_audio_url,
                 created_at=str(audio_processing.created_at),
                 updated_at=str(audio_processing.updated_at),
@@ -357,6 +365,20 @@ class AudioProcessingService:
             #         expiration=8 * 3600,  # 8 hour
             #     )
 
+            stage = 5
+            if (
+                not audio_processing.smooth_audio_url
+                or not audio_processing.dynamic_audio_url
+                or not audio_processing.standard_audio_url
+            ):
+                stageRes = (
+                    await self.audio_processing_repository.get_audio_processing_stage(
+                        audio_processing.id
+                    )
+                )
+                if stageRes:
+                    stage = stageRes
+
             audio_processings_res.append(
                 AudioProcessingResponse(
                     id=audio_processing.id,
@@ -369,6 +391,7 @@ class AudioProcessingService:
                     standard_audio_url=standard_audio_url,
                     dynamic_audio_url=dynamic_audio_url,
                     smooth_audio_url=smooth_audio_url,
+                    stage=stage,
                     created_at=str(audio_processing.created_at),
                     updated_at=str(audio_processing.updated_at),
                 )
@@ -420,6 +443,20 @@ class AudioProcessingService:
         #         expiration=8 * 3600,  # 8 hour
         #     )
 
+        stage = 5
+        if (
+            not audio_processing.smooth_audio_url
+            or not audio_processing.dynamic_audio_url
+            or not audio_processing.standard_audio_url
+        ):
+            stageRes = (
+                await self.audio_processing_repository.get_audio_processing_stage(
+                    audio_processing.id
+                )
+            )
+            if stageRes:
+                stage = stageRes
+
         audio_processing = AudioProcessingResponse(
             id=audio_processing.id,
             user_id=audio_processing.user_id,
@@ -431,6 +468,7 @@ class AudioProcessingService:
             standard_audio_url=standard_audio_url,
             dynamic_audio_url=dynamic_audio_url,
             smooth_audio_url=smooth_audio_url,
+            stage=stage,
             created_at=str(audio_processing.created_at),
             updated_at=str(audio_processing.updated_at),
         )
@@ -507,6 +545,31 @@ class AudioProcessingService:
 
         await self.audio_processing_repository.update_audio_processing(audio_processing)
         logger.info("Audio processing record updated successfully")
+
+        await self.audio_processing_repository.set_audio_processing_stage(
+            audio_processing.id, 5
+        )
+
+    async def update_audio_processing_stage(
+        self,
+        params: UpdateAudioProcessingStageParams,
+        req: UpdateAudioProcessingStageRequest,
+    ) -> None:
+        """Update audio processing stage"""
+        audio_processing = (
+            await self.audio_processing_repository.get_audio_processing_by_id(
+                audio_processing_id=params.audio_processing_id
+            )
+        )
+
+        if not audio_processing:
+            raise ValueError("Audio processing not found")
+
+        await self.audio_processing_repository.set_audio_processing_stage(
+            audio_processing.id, req.stage
+        )
+        logger.info(f"Audio processing stage updated to {req.stage}")
+        return
 
 
 def get_audio_processing_service(

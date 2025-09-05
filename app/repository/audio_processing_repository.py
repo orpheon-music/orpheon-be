@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Literal
 from uuid import UUID
 
 import redis
@@ -248,6 +249,29 @@ class AudioProcessingRepository:
         await self.redis.delete(user_cache_key)
 
         return
+
+    async def get_audio_processing_stage(
+        self, audio_processing_id: UUID
+    ) -> Literal[0, 1, 2, 3, 4, 5] | None:
+        cache_key = f"audio_processing:{audio_processing_id}:stage"
+        cached_stage = await self.redis.get(cache_key)
+        if cached_stage:
+            logger.info(
+                f"Cache hit for stage of audio processing {audio_processing_id}"
+            )
+            return int(cached_stage)  # type: ignore
+
+        return None
+
+    async def set_audio_processing_stage(
+        self, audio_processing_id: UUID, stage: int
+    ) -> None:
+        cache_key = f"audio_processing:{audio_processing_id}:stage"
+        await self.redis.set(cache_key, stage)
+
+    async def delete_audio_processing_stage(self, audio_processing_id: UUID) -> None:
+        cache_key = f"audio_processing:{audio_processing_id}:stage"
+        await self.redis.delete(cache_key)
 
 
 def get_audio_processing_repository(

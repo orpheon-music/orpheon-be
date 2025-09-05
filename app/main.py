@@ -49,6 +49,8 @@ from app.dto.audio_processing_dto import (
     UpdateAudioProcessingRequest,
     UpdateAudioProcessingResultParams,
     UpdateAudioProcessingResultRequest,
+    UpdateAudioProcessingStageParams,
+    UpdateAudioProcessingStageRequest,
 )
 from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
 from app.infra.external_services.ml_service import MLService
@@ -190,6 +192,7 @@ async def get_current_user(
     token = credentials.credentials
     return await auth_svc.get_session(token)
 
+
 # api key middleware
 async def api_key_middleware(
     request: Request,
@@ -205,6 +208,7 @@ async def api_key_middleware(
         )
     response = await call_next(request)
     return response
+
 
 @app.middleware("http")
 async def log_request_duration(
@@ -401,6 +405,36 @@ async def update_audio_processing_result_files(
     await audio_processing_svc.update_audio_processing_result(
         req=req,
         params=params,
+    )
+
+    return
+
+
+@app.put(
+    "/api/v1/audio-processing/{audio_processing_id}/stage",
+    tags=["Audio Processing"],
+    summary="Update Audio Processing Stage",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def update_audio_processing_stage(
+    audio_processing_id: UUID5,
+    stage: Literal[0, 1, 2, 3, 4, 5],
+    audio_processing_svc: AudioProcessingService = Depends(
+        get_audio_processing_service
+    ),
+    _api_key_check: Response = Depends(api_key_middleware),
+):
+    params = UpdateAudioProcessingStageParams(
+        audio_processing_id=audio_processing_id,
+    )
+
+    req = UpdateAudioProcessingStageRequest(
+        stage=stage,
+    )
+
+    await audio_processing_svc.update_audio_processing_stage(
+        params=params,
+        req=req,
     )
 
     return

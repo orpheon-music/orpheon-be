@@ -22,6 +22,8 @@ class AudioProcessingResponse(BaseModel):
     dynamic_audio_url: str | None
     smooth_audio_url: str | None
 
+    stage: Literal[0, 1, 2, 3, 4, 5]
+
     created_at: str
     updated_at: str
 
@@ -53,6 +55,12 @@ class UpdateAudioProcessingResultRequest(BaseModel):
     standard_file: Annotated[UploadFile, File()]
     dynamic_file: Annotated[UploadFile, File()]
     smooth_file: Annotated[UploadFile, File()]
+
+class UpdateAudioProcessingStageParams(BaseModel):
+    audio_processing_id: UUID
+
+class UpdateAudioProcessingStageRequest(BaseModel):
+    stage: Literal[0, 1, 2, 3, 4, 5]
 
 class GetAudioProcessingsQuery(BaseModel):
     page: int = 1
