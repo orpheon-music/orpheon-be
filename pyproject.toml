@@ -25,6 +25,9 @@ dependencies = [
     "redis[hiredis]>=6.2.0",
     "aio-pika>=9.5.5",
     "mutagen>=1.47.0",
+    "grpcio>=1.74.0",
+    "grpcio-tools>=1.74.0",
+    "protobuf>=6.32.0",
 ]
 
 [dependency-groups]

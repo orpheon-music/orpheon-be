@@ -192,3 +192,11 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# gRPC Python codegen
+app/infra/external_services/proto_gen/
+**/*_pb2.py
+**/*_pb2.pyi
+**/*_pb2_grpc.py
+**/*_pb2_grpc.pyi
+__pycache__/

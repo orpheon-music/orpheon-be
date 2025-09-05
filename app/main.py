@@ -23,6 +23,7 @@ from pydantic import UUID5
 
 from app.config.database import check_database_connection
 from app.config.logging import setup_logging
+from app.config.ml_service import connect_ml_service, disconnect_ml_service
 from app.config.rabbit_mq import (
     connect_rabbit_mq,
     disconnect_rabbit_mq,
@@ -98,6 +99,14 @@ async def lifespan(
     except Exception as e:
         logger.error(f"RabbitMQ connection error: {e}")
 
+
+    # Check ML Service connection
+    try:
+        await connect_ml_service()
+        logger.info("ML Service connection established")
+    except Exception as e:
+        logger.error(f"ML Service connection error: {e}")
+
     # Check S3 Bucket
     try:
         s3_service: S3Service = get_s3_client()  # type: ignore
@@ -127,6 +136,13 @@ async def lifespan(
         except asyncio.CancelledError:
             pass
         logger.info("Background consumer stopped")
+
+    # Disconnect from ML Service
+    try:
+        await disconnect_ml_service()
+        logger.info("Disconnected from ML Service")
+    except Exception as e:
+        logger.warning(f"ML Service disconnect error: {e}")
 
     # Disconnect from RabbitMQ
     await disconnect_rabbit_mq()

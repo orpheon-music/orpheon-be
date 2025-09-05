@@ -25,7 +25,15 @@ Install all the required Python packages
 uv sync
 ```
 
-#### 3. Run the API Server
+#### 3. Generate gRPC Code from Proto File
+If you have made changes to the `echo.proto` file or are setting up the project for the first time, you need to generate the gRPC Python files.
+
+```bash
+chmod +x gen_echo_proto.sh
+./gen_echo_proto.sh
+```
+
+#### 4. Run the API Server
 
 Start the application using Uvicorn.
 

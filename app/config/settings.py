@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     RABBITMQ_USER: str = "guest"
     RABBITMQ_PASSWORD: str = "guest"
 
+    # ML Service
+    ML_SERVICE_HOST: str = "localhost"
+    ML_SERVICE_PORT: int = 5000
+
     class Config:
         env_file = ".env"
 
