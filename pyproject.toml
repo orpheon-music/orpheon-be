@@ -20,7 +20,6 @@ dependencies = [
     "boto3>=1.39.4",
     "boto3-stubs[s3]>=1.39.4",
     "python-multipart>=0.0.20",
-    "yt-dlp>=2025.6.30",
     "yt-dlp-types>=0.0.17",
     "redis[hiredis]>=6.2.0",
     "aio-pika>=9.5.5",
@@ -28,6 +27,7 @@ dependencies = [
     "grpcio>=1.74.0",
     "grpcio-tools>=1.74.0",
     "protobuf>=6.32.0",
+    "yt-dlp>=2025.8.27",
 ]
 
 [dependency-groups]
