@@ -239,7 +239,24 @@ class AudioProcessingService:
             audio_processing.id, 0
         )
 
-        asyncio.create_task(self._handle_audio_processing(req, audio_processing))
+        voice_bytes = await req.voice_file.read()
+        req.voice_file.file.seek(0)
+        instrument_bytes = await req.instrument_file.read()
+        req.instrument_file.file.seek(0)
+
+        task = asyncio.create_task(
+            self._handle_audio_processing(
+                req.user_id,
+                voice_bytes,
+                instrument_bytes,
+                req.reference_url,
+                audio_processing,
+            ),
+            name=f"handle-audio-processing-{audio_processing.id}",
+        )
+
+        # Surface exceptions for logs:
+        task.add_done_callback(lambda t: t.exception())
 
         res = CreateAudioProcessingResponse(
             audio_processing=AudioProcessingResponse(
@@ -261,30 +278,33 @@ class AudioProcessingService:
         return res
 
     async def _handle_audio_processing(
-        self, req: CreateAudioProcessingRequest, audio_processing: AudioProcessing
+        self,
+        user_id: uuid.UUID,
+        voice_bytes: bytes,
+        instrument_bytes: bytes,
+        reference_url: str,
+        audio_processing: AudioProcessing,
     ) -> None:
         logger.info("Uploading voice file to S3")
-        voice_file_data = await req.voice_file.read()
-        voice_file_content = BytesIO(voice_file_data)
-        voice_file_filename = (
-            f"{audio_processing.id}-voice.{req.voice_file.filename.split('.')[-1]}"  # type: ignore
-        )
+        voice_file_content = BytesIO(voice_bytes)
+        voice_file_filename = f"{audio_processing.id}-voice.{audio_processing.format}"  # type: ignore
         voice_file_url = await self.s3_client.upload_file(
             voice_file_content, voice_file_filename, "ahargunyllib-s3-testing"
         )
         logger.info("Voice file uploaded to S3")
 
         logger.info("Uploading instrument file to S3")
-        instrument_file_data = await req.instrument_file.read()
-        instrument_file_content = BytesIO(instrument_file_data)
-        instrument_file_filename = f"{audio_processing.id}-instrument.{req.instrument_file.filename.split('.')[-1]}"  # type: ignore
+        instrument_file_content = BytesIO(instrument_bytes)
+        instrument_file_filename = (
+            f"{audio_processing.id}-instrument.{audio_processing.format}"  # type: ignore
+        )
         instrument_file_url = await self.s3_client.upload_file(
             instrument_file_content, instrument_file_filename, "ahargunyllib-s3-testing"
         )
         logger.info("Instrument file uploaded to S3")
 
         logger.info("Downloading reference audio from YouTube")
-        reference_file_path = await asyncio.to_thread(download_audio, req.reference_url)
+        reference_file_path = await asyncio.to_thread(download_audio, reference_url)
 
         with open(reference_file_path, "rb") as f:
             file_content = BytesIO(f.read())
@@ -312,7 +332,7 @@ class AudioProcessingService:
 
         # Clear cache for the user
         logger.info("Clearing cache for the user")
-        cache_key = f"user:{req.user_id}:audio_processings"
+        cache_key = f"user:{user_id}:audio_processings"
         await self.audio_processing_repository.redis.delete(cache_key)
         logger.info("Cache cleared successfully")
 
