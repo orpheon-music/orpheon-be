@@ -24,7 +24,6 @@ class RabbitMQService:
         self.channel: AbstractChannel | None = None
         self.exchange: AbstractExchange | None = None
         self.processing_queue: AbstractQueue | None = None
-        self.retry_queue: AbstractQueue | None = None
 
     async def connect(self):
         """Establish connection to RabbitMQ"""
@@ -67,19 +66,8 @@ class RabbitMQService:
             },
         )
 
-        self.retry_queue = await self.channel.declare_queue(
-            "audio.processing.retry",
-            durable=True,
-            arguments={
-                "x-message-ttl": 30000,  # 30 seconds delay
-                "x-dead-letter-exchange": "audio.processing",
-                "x-dead-letter-routing-key": "audio.processing.new",
-            },
-        )
-
         # Bind queues to exchange
         await self.processing_queue.bind(self.exchange, "audio.processing.new")
-        await self.retry_queue.bind(self.exchange, "audio.processing.retry")
 
     async def publish_job(
         self,
@@ -95,7 +83,6 @@ class RabbitMQService:
             "job_id": str(job_id),
             "action": "process",
             "priority": priority,
-            "retry_count": 0,
         }
 
         if additional_data:
@@ -108,24 +95,6 @@ class RabbitMQService:
         )
 
         await self.exchange.publish(message, routing_key="audio.processing.new")
-
-    async def publish_retry(self, job_id: uuid.UUID, retry_count: int):
-        if not self.exchange:
-            raise RuntimeError("Exchange is not initialized. Call connect() first.")
-
-        """Publish job to retry queue"""
-        message_body = {  # type: ignore
-            "job_id": str(job_id),
-            "action": "retry",
-            "priority": "normal",
-            "retry_count": retry_count,
-        }
-
-        message = Message(
-            json.dumps(message_body).encode(), delivery_mode=DeliveryMode.PERSISTENT
-        )
-
-        await self.exchange.publish(message, routing_key="audio.processing.retry")
 
 
 class AsyncAudioConsumer:
@@ -142,10 +111,7 @@ class AsyncAudioConsumer:
             raise RuntimeError("Queue service is not initialized.")
         await self.queue_service.connect()
 
-        if (
-            not self.queue_service.processing_queue
-            or not self.queue_service.retry_queue
-        ):
+        if not self.queue_service.processing_queue:
             raise RuntimeError(
                 "Processing queue is not initialized. Call connect() first."
             )
@@ -153,11 +119,6 @@ class AsyncAudioConsumer:
         # Start consuming from processing queue
         await self.queue_service.processing_queue.consume(
             self._process_message, no_ack=False
-        )
-
-        # Start consuming from retry queue
-        await self.queue_service.retry_queue.consume(
-            self._process_retry_message, no_ack=False
         )
 
         self.is_consuming = True
@@ -182,19 +143,18 @@ class AsyncAudioConsumer:
             # Parse message
             body = json.loads(message.body.decode())
             job_id = uuid.UUID(body["job_id"])
-            retry_count = body.get("retry_count", 0)
 
             voice_file_url = body.get("voice_file_url")
             instrument_file_url = body.get("instrument_file_url")
             reference_file_url = body.get("reference_file_url")
 
             logger.info(
-                f"Processing job {job_id} with retry count {retry_count} - "
+                f"Processing job {job_id} - "
                 f"Voice: {voice_file_url}, Instrument: {instrument_file_url}, "
                 f"Reference: {reference_file_url}"
             )
 
-            self.ml_service.process(
+            await self.ml_service.process(
                 audio_processing_id=str(job_id),
                 voice_file_url=voice_file_url,  # type: ignore
                 reference_file_url=reference_file_url,  # type: ignore
@@ -204,25 +164,5 @@ class AsyncAudioConsumer:
             await message.ack()
 
         except Exception:
-            # Handle retry logic
-            retry_count = body.get("retry_count", 0)  # type: ignore
-            if retry_count < 3:  # Max 3 retries
-                await self.queue_service.publish_retry(job_id, retry_count + 1)  # type: ignore
-                await message.ack()  # Ack original message
-            else:
-                await message.reject(requeue=False)  # Send to DLQ
-
-    async def _process_retry_message(self, message: AbstractIncomingMessage):
-        """Process retry message - just re-route to main processing"""
-        try:
-            body = json.loads(message.body.decode())
-
-            # Re-publish to main queue with updated retry count
-            await self.queue_service.publish_job(
-                uuid.UUID(body["job_id"]), body.get("priority", "normal")
-            )
-
-            await message.ack()
-
-        except Exception:
-            await message.reject(requeue=False)
+            logger.warning(f"Failed to process message: {message.body.decode()}")
+            await message.nack(requeue=False)

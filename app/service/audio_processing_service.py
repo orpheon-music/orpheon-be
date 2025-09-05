@@ -1,6 +1,7 @@
 import asyncio
 import logging
-import os
+
+# import os
 import re
 import uuid
 from datetime import datetime
@@ -303,19 +304,22 @@ class AudioProcessingService:
         )
         logger.info("Instrument file uploaded to S3")
 
-        logger.info("Downloading reference audio from YouTube")
-        reference_file_path = await asyncio.to_thread(download_audio, reference_url)
+        # logger.info("Downloading reference audio from YouTube")
+        # reference_file_path = await asyncio.to_thread(download_audio, reference_url)
 
-        with open(reference_file_path, "rb") as f:
-            file_content = BytesIO(f.read())
+        # with open(reference_file_path, "rb") as f:
+        #     file_content = BytesIO(f.read())
 
-        reference_file_name = f"{audio_processing.id}-reference.mp3"
-        reference_file_url = await self.s3_client.upload_file(
-            file_content, reference_file_name, "ahargunyllib-s3-testing"
+        # reference_file_name = f"{audio_processing.id}-reference.mp3"
+        # reference_file_url = await self.s3_client.upload_file(
+        #     file_content, reference_file_name, "ahargunyllib-s3-testing"
+        # )
+        # logger.info("Reference audio downloaded and uploaded to S3")
+        # os.remove(reference_file_path)
+        # logger.info("Temporary reference audio file removed")
+        reference_file_url = (
+            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
         )
-        logger.info("Reference audio downloaded and uploaded to S3")
-        os.remove(reference_file_path)
-        logger.info("Temporary reference audio file removed")
 
         # Publish job to RabbitMQ
         logger.info("Publishing job to RabbitMQ")
