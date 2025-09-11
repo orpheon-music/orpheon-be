@@ -84,6 +84,7 @@ async def start_background_consumer():
 async def lifespan(
     app: FastAPI,
 ):
+    settings = get_settings()
     # Startup
     logger.info("Starting Orpheon BE...")
 
@@ -108,12 +109,14 @@ async def lifespan(
     except Exception as e:
         logger.error(f"RabbitMQ connection error: {e}")
 
-    # Check ML Service connection
-    try:
-        await connect_ml_service()
-        logger.info("ML Service connection established")
-    except Exception as e:
-        logger.error(f"ML Service connection error: {e}")
+    if settings.ML_SERVICE_ENABLED:
+      # Check ML Service connection
+      try:
+          await connect_ml_service()
+          logger.info("ML Service connection established")
+      except Exception as e:
+          logger.error(f"ML Service connection error: {e}")
+
 
     # Check S3 Bucket
     try:
@@ -146,11 +149,12 @@ async def lifespan(
         logger.info("Background consumer stopped")
 
     # Disconnect from ML Service
-    try:
-        await disconnect_ml_service()
-        logger.info("Disconnected from ML Service")
-    except Exception as e:
-        logger.warning(f"ML Service disconnect error: {e}")
+    if settings.ML_SERVICE_ENABLED:
+      try:
+          await disconnect_ml_service()
+          logger.info("Disconnected from ML Service")
+      except Exception as e:
+          logger.warning(f"ML Service disconnect error: {e}")
 
     # Disconnect from RabbitMQ
     await disconnect_rabbit_mq()

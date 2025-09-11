@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # ML Service
     ML_SERVICE_HOST: str = "localhost"
     ML_SERVICE_PORT: int = 5000
+    ML_SERVICE_ENABLED: bool = True
 
     # Other
     API_KEY: str = "your_api_key"
