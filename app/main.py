@@ -471,9 +471,18 @@ async def download_file(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="File not found in S3 bucket.",
             )
+
+        media_type = "application/octet-stream"
+        if file_name.endswith(".wav"):
+            media_type = "audio/wav"
+        elif file_name.endswith(".mp3"):
+            media_type = "audio/mpeg"
+        elif file_name.endswith(".flac"):
+            media_type = "audio/flac"
+
         return StreamingResponse(
             file_content,
-            media_type="application/octet-stream",
+            media_type=media_type,
             headers={"Content-Disposition": f"attachment; filename={file_name}"},
             status_code=status.HTTP_200_OK,
         )

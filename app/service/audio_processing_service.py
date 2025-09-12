@@ -240,10 +240,10 @@ class AudioProcessingService:
             audio_processing.id, 0
         )
 
-        voice_bytes = await req.voice_file.read()
         req.voice_file.file.seek(0)
-        instrument_bytes = await req.instrument_file.read()
+        voice_bytes = await req.voice_file.read()
         req.instrument_file.file.seek(0)
+        instrument_bytes = await req.instrument_file.read()
 
         task = asyncio.create_task(
             self._handle_audio_processing(
