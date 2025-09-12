@@ -204,11 +204,14 @@ class AsyncAudioConsumer:
             )
 
             # Process the job
-            await self.ml_service.process(
+            is_processing_success = await self.ml_service.process(
                 audio_processing_id=str(job_id),
                 voice_file_url=voice_file_url,
                 reference_file_url=reference_file_url,
             )
+
+            if not is_processing_success:
+                raise Exception("ML service processing failed")
 
             # Acknowledge message on success
             await message.ack()
