@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -10,12 +11,23 @@ from fastapi import Depends, HTTPException, status
 from app.config.settings import Settings
 from app.dto.auth_dto import LoginRequest, LoginResponse, RegisterRequest, UserResponse
 from app.model.user_model import User
+from app.repository.feature_event_repository import (
+    FeatureEventRepository,
+    get_feature_event_repository,
+)
 from app.repository.user_repository import UserRepository, get_user_repository
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
-    def __init__(self, user_repository: UserRepository):
+    def __init__(
+        self,
+        user_repository: UserRepository,
+        feature_event_repository: FeatureEventRepository,
+    ):
         self.user_repository = user_repository
+        self.feature_event_repository = feature_event_repository
 
     async def register_user(self, user_data: RegisterRequest) -> None:
         """Register new user"""
@@ -47,6 +59,11 @@ class AuthService:
             )
         )
 
+        await self.feature_event_repository.create_feature_event(
+            feature_name="auth",
+            event_type="user_registered",
+        )
+
         return
 
     async def login_user(self, login_data: LoginRequest) -> LoginResponse:
@@ -75,6 +92,11 @@ class AuthService:
             payload=payload,
             key=settings.JWT_SECRET_KEY,
             algorithm="HS256",
+        )
+
+        await self.feature_event_repository.create_feature_event(
+            feature_name="auth",
+            event_type="user_logged_in",
         )
 
         return LoginResponse(access_token=access_token)
@@ -109,5 +131,11 @@ class AuthService:
 
 def get_auth_service(
     user_repository: UserRepository = Depends(get_user_repository),
+    feature_event_repository: FeatureEventRepository = Depends(
+        get_feature_event_repository
+    ),
 ) -> AuthService:
-    return AuthService(user_repository=user_repository)
+    return AuthService(
+        user_repository=user_repository,
+        feature_event_repository=feature_event_repository,
+    )
