@@ -41,6 +41,10 @@ from app.repository.audio_processing_repository import (
     AudioProcessingRepository,
     get_audio_processing_repository,
 )
+from app.repository.feature_event_repository import (
+    FeatureEventRepository,
+    get_feature_event_repository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +55,12 @@ class AudioProcessingService:
         s3_client: S3Service,
         audio_processing_repository: AudioProcessingRepository,
         rabbitmq_service: RabbitMQService,
+        feature_event_repository: FeatureEventRepository,
     ):
         self.audio_processing_repository = audio_processing_repository
         self.s3_client = s3_client
         self.rabbitmq_service = rabbitmq_service
+        self.feature_event_repository = feature_event_repository
 
     async def process_audio(
         self, req: CreateAudioProcessingRequest
@@ -338,6 +344,11 @@ class AudioProcessingService:
         await self.audio_processing_repository.redis.delete(cache_key)
         logger.info("Cache cleared successfully")
 
+        await self.feature_event_repository.create_feature_event(
+            feature_name="audio_processing",
+            event_type="audio_processing_started",
+        )
+
     async def get_library(
         self, query: GetAudioProcessingsQuery, user_id: uuid.UUID
     ) -> GetAudioProcessingsResponse:
@@ -421,6 +432,11 @@ class AudioProcessingService:
 
         meta = GetAudioProcessingsMeta(pagination=pagination)
 
+        await self.feature_event_repository.create_feature_event(
+            feature_name="audio_processing",
+            event_type="audio_processing_listed"
+        )
+
         return GetAudioProcessingsResponse(
             audio_processings=audio_processings_res,
             meta=meta,
@@ -495,6 +511,14 @@ class AudioProcessingService:
             updated_at=str(audio_processing.updated_at),
         )
 
+        await self.feature_event_repository.create_feature_event(
+            feature_name="audio_processing",
+            event_type="audio_processing_viewed",
+            event_data={
+                "audio_processing_id": str(audio_processing.id),
+            },
+        )
+
         return GetAudioProcessingByIdResponse(audio_processing=audio_processing)
 
     async def update_audio_processing(
@@ -516,6 +540,14 @@ class AudioProcessingService:
 
         # Save the updated audio processing
         await self.audio_processing_repository.update_audio_processing(audio_processing)
+
+        await self.feature_event_repository.create_feature_event(
+            feature_name="audio_processing",
+            event_type="audio_processing_updated",
+            event_data={
+                "audio_processing_id": str(audio_processing.id),
+            },
+        )
 
     async def update_audio_processing_result(
         self,
@@ -572,6 +604,14 @@ class AudioProcessingService:
             audio_processing.id, 5
         )
 
+        await self.feature_event_repository.create_feature_event(
+            feature_name="audio_processing",
+            event_type="audio_processing_completed",
+            event_data={
+                "audio_processing_id": str(audio_processing.id),
+            },
+        )
+
     async def update_audio_processing_stage(
         self,
         params: UpdateAudioProcessingStageParams,
@@ -591,6 +631,16 @@ class AudioProcessingService:
             audio_processing.id, req.stage
         )
         logger.info(f"Audio processing stage updated to {req.stage}")
+
+        await self.feature_event_repository.create_feature_event(
+            feature_name="audio_processing",
+            event_type="audio_processing_stage_updated",
+            event_data={
+                "stage": str(req.stage),
+                "audio_processing_id": str(audio_processing.id),
+            },
+        )
+
         return
 
 
@@ -600,11 +650,15 @@ def get_audio_processing_service(
         get_audio_processing_repository
     ),
     rabbitmq_service: RabbitMQService = Depends(get_rabbit_mq_service),
+    feature_event_repository: FeatureEventRepository = Depends(
+        get_feature_event_repository
+    ),
 ) -> AudioProcessingService:
     return AudioProcessingService(
         s3_client=s3_client,
         audio_processing_repository=audio_processing_repository,
         rabbitmq_service=rabbitmq_service,
+        feature_event_repository=feature_event_repository,
     )
 
 
