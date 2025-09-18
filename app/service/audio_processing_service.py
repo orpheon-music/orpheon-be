@@ -258,6 +258,8 @@ class AudioProcessingService:
                 voice_bytes,
                 instrument_bytes,
                 req.reference_url,
+                req.is_denoise,
+                req.is_autotune,
                 audio_processing,
             ),
             name=f"handle-audio-processing-{audio_processing.id}",
@@ -297,6 +299,8 @@ class AudioProcessingService:
         voice_bytes: bytes,
         instrument_bytes: bytes,
         reference_url: str,
+        is_denoise: bool,
+        is_autotune: bool,
         audio_processing: AudioProcessing,
     ) -> None:
         logger.info("Uploading voice file to S3")
@@ -340,6 +344,8 @@ class AudioProcessingService:
                 "voice_file_url": voice_file_url,
                 "instrument_file_url": instrument_file_url,
                 "reference_file_url": reference_file_url,
+                "is_denoise": is_denoise,
+                "is_autotune": is_autotune,
             },
         )
         logger.info("Job published to RabbitMQ successfully")

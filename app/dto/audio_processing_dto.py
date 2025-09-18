@@ -30,8 +30,10 @@ class AudioProcessingResponse(BaseModel):
 
 class CreateAudioProcessingRequest(BaseModel):
     voice_file: Annotated[UploadFile, File()]
-    instrument_file: Annotated[UploadFile, File()]
+    instrument_file: Annotated[UploadFile, File()] | None = None
     reference_url: Annotated[str, Form()]
+    is_denoise: Annotated[bool, Form()]
+    is_autotune: Annotated[bool, Form()]
 
     user_id: UUID
 

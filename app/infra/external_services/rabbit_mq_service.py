@@ -111,7 +111,7 @@ class RabbitMQService:
         self,
         job_id: uuid.UUID,
         priority: str = "normal",
-        additional_data: dict[str, str] | None = None,
+        additional_data: dict[str, str | bool] | None = None,
     ):
         """Publish job to processing queue"""
         if not self.exchange:
@@ -190,6 +190,8 @@ class AsyncAudioConsumer:
             voice_file_url = body.get("voice_file_url")
             instrument_file_url = body.get("instrument_file_url")
             reference_file_url = body.get("reference_file_url")
+            is_denoise = body.get("is_denoise")
+            is_autotune = body.get("is_autotune")
 
             # Validate required fields
             if not voice_file_url or not reference_file_url:
@@ -200,7 +202,7 @@ class AsyncAudioConsumer:
             logger.info(
                 f"Processing job {job_id} (retry: {retry_count}) - "
                 f"Voice: {voice_file_url}, Instrument: {instrument_file_url}, "
-                f"Reference: {reference_file_url}"
+                f"Reference: {reference_file_url} - Denoise: {is_denoise}, Autotune: {is_autotune}"
             )
 
             # Process the job
@@ -208,6 +210,7 @@ class AsyncAudioConsumer:
                 audio_processing_id=str(job_id),
                 voice_file_url=voice_file_url,
                 reference_file_url=reference_file_url,
+                # TODO: handle optional instrument file, is_denoise, is_autotune
             )
 
             if not is_processing_success:
