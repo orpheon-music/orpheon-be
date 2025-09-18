@@ -266,6 +266,12 @@ class AudioProcessingService:
         # Surface exceptions for logs:
         task.add_done_callback(lambda t: t.exception())
 
+        # Clear cache for the user
+        logger.info("Clearing cache for the user")
+        cache_key = f"user:{req.user_id}:audio_processings"
+        await self.audio_processing_repository.redis.delete(cache_key)
+        logger.info("Cache cleared successfully")
+
         res = CreateAudioProcessingResponse(
             audio_processing=AudioProcessingResponse(
                 id=audio_processing.id,
@@ -337,12 +343,6 @@ class AudioProcessingService:
             },
         )
         logger.info("Job published to RabbitMQ successfully")
-
-        # Clear cache for the user
-        logger.info("Clearing cache for the user")
-        cache_key = f"user:{user_id}:audio_processings"
-        await self.audio_processing_repository.redis.delete(cache_key)
-        logger.info("Cache cleared successfully")
 
         await self.feature_event_repository.create_feature_event(
             feature_name="audio_processing",
