@@ -421,7 +421,7 @@ async def update_audio_processing_result_files(
 )
 async def update_audio_processing_stage(
     audio_processing_id: UUID5,
-    stage: Literal[0, 1, 2, 3, 4, 5],
+    req: UpdateAudioProcessingStageRequest,
     audio_processing_svc: AudioProcessingService = Depends(
         get_audio_processing_service
     ),
@@ -429,10 +429,6 @@ async def update_audio_processing_stage(
 ):
     params = UpdateAudioProcessingStageParams(
         audio_processing_id=audio_processing_id,
-    )
-
-    req = UpdateAudioProcessingStageRequest(
-        stage=stage,
     )
 
     await audio_processing_svc.update_audio_processing_stage(
