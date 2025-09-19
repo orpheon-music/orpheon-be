@@ -329,7 +329,7 @@ async def create_audio_processing(
     reference_url: Annotated[str, Form()],
     is_denoise: Annotated[bool, Form()],
     is_autotune: Annotated[bool, Form()],
-    instrument_file: Annotated[UploadFile, File()] | None = None,
+    instrument_file: Annotated[UploadFile | None, File()] = None,
     current_user: UserResponse = Depends(get_current_user),
     audio_processing_svc: AudioProcessingService = Depends(
         get_audio_processing_service
