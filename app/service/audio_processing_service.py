@@ -410,12 +410,14 @@ class AudioProcessingService:
                 or not audio_processing.dynamic_audio_url
                 or not audio_processing.standard_audio_url
             ):
+                logger.info(f"Audio processing {audio_processing.id} is missing URLs, checking stage... ")
                 stageRes = (
                     await self.audio_processing_repository.get_audio_processing_stage(
                         audio_processing.id
                     )
                 )
-                if stageRes:
+                logger.info(f"Stage for audio processing {audio_processing.id} is {stageRes}")
+                if stageRes is not None:
                     stage = stageRes
 
             audio_processings_res.append(
