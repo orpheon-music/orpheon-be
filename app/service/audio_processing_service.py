@@ -118,70 +118,65 @@ class AudioProcessingService:
         logger.info(f"Voice file mutagen duration: {voice_file_mutagen.info.length}")  # type: ignore
 
         # validate instrument_file
-        logger.info("Validating instrument file")
-        if not req.instrument_file:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Instrument file is required",
-            )
-        logger.info("Instrument file provided")
+        if req.instrument_file:
+          logger.info("Validating instrument file")
 
-        # only support .wav, .mp3, .flac
-        if not req.instrument_file.filename.endswith(  # type: ignore
-            (".wav", ".mp3", ".flac")
-        ):
-            logger.warning(
-                f"Unsupported instrument file format: {req.instrument_file.filename}"
-            )
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Only .wav, .mp3, .flac files are supported",
-            )
-        logger.info(
-            f"Instrument file format is {req.instrument_file.filename.split('.')[-1]}"  # type: ignore
-        )
+          # only support .wav, .mp3, .flac
+          if not req.instrument_file.filename.endswith(  # type: ignore
+              (".wav", ".mp3", ".flac")
+          ):
+              logger.warning(
+                  f"Unsupported instrument file format: {req.instrument_file.filename}"
+              )
+              raise HTTPException(
+                  status_code=status.HTTP_400_BAD_REQUEST,
+                  detail="Only .wav, .mp3, .flac files are supported",
+              )
+          logger.info(
+              f"Instrument file format is {req.instrument_file.filename.split('.')[-1]}"  # type: ignore
+          )
 
-        # Check if the file size is less than 100MB
-        if (
-            req.instrument_file.size > 100 * 1024 * 1024  # type: ignore
-        ):  # 100MB
-            logger.warning(f"Instrument file size: {req.instrument_file.size}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File size must be less than 100MB",
-            )
-        logger.info(
-            f"Instrument file size: {req.instrument_file.size} bytes, {req.instrument_file.size / (1024 * 1024):.2f} MB"  # type: ignore
-        )
+          # Check if the file size is less than 100MB
+          if (
+              req.instrument_file.size > 100 * 1024 * 1024  # type: ignore
+          ):  # 100MB
+              logger.warning(f"Instrument file size: {req.instrument_file.size}")
+              raise HTTPException(
+                  status_code=status.HTTP_400_BAD_REQUEST,
+                  detail="File size must be less than 100MB",
+              )
+          logger.info(
+              f"Instrument file size: {req.instrument_file.size} bytes, {req.instrument_file.size / (1024 * 1024):.2f} MB"  # type: ignore
+          )
 
-        # Check if the file duration is less than 10 minutes
-        instrument_file_mutagen = None
-        if req.instrument_file.filename and req.instrument_file.filename.endswith(
-            ".mp3"
-        ):
-            instrument_file_mutagen = mutagenMP3.Open(req.instrument_file.file)
-        elif req.instrument_file.filename and req.instrument_file.filename.endswith(
-            ".flac"
-        ):
-            instrument_file_mutagen = mutagenFLAC.Open(req.instrument_file.file)
-        elif req.instrument_file.filename and req.instrument_file.filename.endswith(
-            ".wav"
-        ):
-            instrument_file_mutagen = mutagenWAVE.Open(req.instrument_file.file)
+          # Check if the file duration is less than 10 minutes
+          instrument_file_mutagen = None
+          if req.instrument_file.filename and req.instrument_file.filename.endswith(
+              ".mp3"
+          ):
+              instrument_file_mutagen = mutagenMP3.Open(req.instrument_file.file)
+          elif req.instrument_file.filename and req.instrument_file.filename.endswith(
+              ".flac"
+          ):
+              instrument_file_mutagen = mutagenFLAC.Open(req.instrument_file.file)
+          elif req.instrument_file.filename and req.instrument_file.filename.endswith(
+              ".wav"
+          ):
+              instrument_file_mutagen = mutagenWAVE.Open(req.instrument_file.file)
 
-        if (
-            instrument_file_mutagen.info.length > 10 * 60  # type: ignore # 10 minutes
-        ):
-            logger.warning(
-                f"Instrument file duration: {instrument_file_mutagen.info.length}"  # type: ignore
-            )
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File duration must be less than 10 minutes",
-            )
-        logger.info(
-            f"Instrument file mutagen duration: {instrument_file_mutagen.info.length}"  # type: ignore
-        )
+          if (
+              instrument_file_mutagen.info.length > 10 * 60  # type: ignore # 10 minutes
+          ):
+              logger.warning(
+                  f"Instrument file duration: {instrument_file_mutagen.info.length}"  # type: ignore
+              )
+              raise HTTPException(
+                  status_code=status.HTTP_400_BAD_REQUEST,
+                  detail="File duration must be less than 10 minutes",
+              )
+          logger.info(
+              f"Instrument file mutagen duration: {instrument_file_mutagen.info.length}"  # type: ignore
+          )
 
         # validate reference_url
         if not req.reference_url:
@@ -249,8 +244,10 @@ class AudioProcessingService:
 
         req.voice_file.file.seek(0)
         voice_bytes = await req.voice_file.read()
-        req.instrument_file.file.seek(0)
-        instrument_bytes = await req.instrument_file.read()
+        instrument_bytes = None
+        if req.instrument_file:
+          req.instrument_file.file.seek(0)
+          instrument_bytes = await req.instrument_file.read()
 
         task = asyncio.create_task(
             self._handle_audio_processing(
@@ -297,7 +294,7 @@ class AudioProcessingService:
         self,
         user_id: uuid.UUID,
         voice_bytes: bytes,
-        instrument_bytes: bytes,
+        instrument_bytes: bytes | None,
         reference_url: str,
         is_denoise: bool,
         is_autotune: bool,
@@ -311,15 +308,17 @@ class AudioProcessingService:
         )
         logger.info("Voice file uploaded to S3")
 
-        logger.info("Uploading instrument file to S3")
-        instrument_file_content = BytesIO(instrument_bytes)
-        instrument_file_filename = (
-            f"{audio_processing.id}-instrument.{audio_processing.format}"  # type: ignore
-        )
-        instrument_file_url = await self.s3_client.upload_file(
-            instrument_file_content, instrument_file_filename, "ahargunyllib-s3-testing"
-        )
-        logger.info("Instrument file uploaded to S3")
+        instrument_file_url = None
+        if instrument_bytes:
+          logger.info("Uploading instrument file to S3")
+          instrument_file_content = BytesIO(instrument_bytes)
+          instrument_file_filename = (
+              f"{audio_processing.id}-instrument.{audio_processing.format}"  # type: ignore
+          )
+          instrument_file_url = await self.s3_client.upload_file(
+              instrument_file_content, instrument_file_filename, "ahargunyllib-s3-testing"
+          )
+          logger.info("Instrument file uploaded to S3")
 
         logger.info("Downloading reference audio from YouTube")
         reference_file_path = await asyncio.to_thread(download_audio, reference_url)
@@ -335,18 +334,21 @@ class AudioProcessingService:
         os.remove(reference_file_path)
         logger.info("Temporary reference audio file removed")
 
+        additional_data: dict[str, str | bool] = {
+            "voice_file_url": voice_file_url,
+            "reference_file_url": reference_file_url,
+            "is_denoise": is_denoise,
+            "is_autotune": is_autotune,
+        }
+        if instrument_file_url:
+          additional_data["instrument_file_url"] = instrument_file_url
+
         # Publish job to RabbitMQ
         logger.info("Publishing job to RabbitMQ")
         await self.rabbitmq_service.publish_job(
             audio_processing.id,
             "normal",
-            {
-                "voice_file_url": voice_file_url,
-                "instrument_file_url": instrument_file_url,
-                "reference_file_url": reference_file_url,
-                "is_denoise": is_denoise,
-                "is_autotune": is_autotune,
-            },
+            additional_data,
         )
         logger.info("Job published to RabbitMQ successfully")
 
