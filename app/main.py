@@ -1,6 +1,7 @@
 import asyncio
 import time
 from collections.abc import Awaitable, Callable
+from io import BytesIO
 from typing import Annotated, Literal
 
 import redis
@@ -110,13 +111,12 @@ async def lifespan(
         logger.error(f"RabbitMQ connection error: {e}")
 
     if settings.ML_SERVICE_ENABLED:
-      # Check ML Service connection
-      try:
-          await connect_ml_service()
-          logger.info("ML Service connection established")
-      except Exception as e:
-          logger.error(f"ML Service connection error: {e}")
-
+        # Check ML Service connection
+        try:
+            await connect_ml_service()
+            logger.info("ML Service connection established")
+        except Exception as e:
+            logger.error(f"ML Service connection error: {e}")
 
     # # Check S3 Bucket
     # try:
@@ -150,11 +150,11 @@ async def lifespan(
 
     # Disconnect from ML Service
     if settings.ML_SERVICE_ENABLED:
-      try:
-          await disconnect_ml_service()
-          logger.info("Disconnected from ML Service")
-      except Exception as e:
-          logger.warning(f"ML Service disconnect error: {e}")
+        try:
+            await disconnect_ml_service()
+            logger.info("Disconnected from ML Service")
+        except Exception as e:
+            logger.warning(f"ML Service disconnect error: {e}")
 
     # Disconnect from RabbitMQ
     await disconnect_rabbit_mq()
@@ -491,6 +491,34 @@ async def download_file(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to download file from S3.",
+        ) from e
+
+
+@app.post(
+    "/api/v1/files",
+    tags=["Files"],
+    summary="Upload File",
+    status_code=status.HTTP_200_OK,
+)
+async def upload_file(
+    file: Annotated[UploadFile, File()],
+    s3_service: S3Service = Depends(get_s3_client),
+):
+    logger.info(f"Uploading file: {file.filename}")
+    try:
+        file_data = await file.read()
+        file_content = BytesIO(file_data)
+        file_filename = f"uploads/{int(time.time())}-{file.filename}"
+        bucket = "artylab.dev02"  # Assuming a fixed bucket for this example
+
+        file_url = await s3_service.upload_file(file_content, file_filename, bucket)
+
+        return {"file_url": file_url}
+    except Exception as e:
+        logger.warning(f"Error uploading file: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to upload file to S3.",
         ) from e
 
 
