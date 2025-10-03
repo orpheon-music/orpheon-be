@@ -123,7 +123,7 @@ async def lifespan(
         s3_service: S3Service = get_s3_client()  # type: ignore
 
         kwargs = {
-            "Bucket": "ahargunyllib-s3-testing",
+            "Bucket": "artylab.dev02",
         }
 
         s3_service.client.head_bucket(**kwargs)
@@ -462,7 +462,7 @@ async def download_file(
                 detail="Invalid URL format. Must start with http:// or https://",
             )
 
-        bucket = "ahargunyllib-s3-testing"  # Assuming a fixed bucket for this example
+        bucket = "artylab.dev02"  # Assuming a fixed bucket for this example
         file_name = url.split("/")[-1]  # Extract file name from URL
 
         file_content = await s3_service.download_file(bucket, file_name)

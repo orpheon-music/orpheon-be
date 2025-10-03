@@ -304,7 +304,7 @@ class AudioProcessingService:
         voice_file_content = BytesIO(voice_bytes)
         voice_file_filename = f"{audio_processing.id}-voice.{audio_processing.format}"  # type: ignore
         voice_file_url = await self.s3_client.upload_file(
-            voice_file_content, voice_file_filename, "ahargunyllib-s3-testing"
+            voice_file_content, voice_file_filename, "artylab.dev02"
         )
         logger.info("Voice file uploaded to S3")
 
@@ -316,7 +316,7 @@ class AudioProcessingService:
               f"{audio_processing.id}-instrument.{audio_processing.format}"  # type: ignore
           )
           instrument_file_url = await self.s3_client.upload_file(
-              instrument_file_content, instrument_file_filename, "ahargunyllib-s3-testing"
+              instrument_file_content, instrument_file_filename, "artylab.dev02"
           )
           logger.info("Instrument file uploaded to S3")
 
@@ -328,7 +328,7 @@ class AudioProcessingService:
 
         reference_file_name = f"{audio_processing.id}-reference.mp3"
         reference_file_url = await self.s3_client.upload_file(
-            file_content, reference_file_name, "ahargunyllib-s3-testing"
+            file_content, reference_file_name, "artylab.dev02"
         )
         logger.info("Reference audio downloaded and uploaded to S3")
         os.remove(reference_file_path)
@@ -383,28 +383,8 @@ class AudioProcessingService:
 
         for audio_processing in audio_processings:
             standard_audio_url = audio_processing.standard_audio_url
-            # if audio_processing.standard_audio_url:
-            #     standard_audio_url = await self.s3_client.get_presigned_url(
-            #         bucket="ahargunyllib-s3-testing",
-            #         file_name=audio_processing.standard_audio_url.split("/")[-1],
-            #         expiration=8 * 3600,  # 8 hour
-            #     )
-
             dynamic_audio_url = audio_processing.dynamic_audio_url
-            # if audio_processing.dynamic_audio_url:
-            #     dynamic_audio_url = await self.s3_client.get_presigned_url(
-            #         bucket="ahargunyllib-s3-testing",
-            #         file_name=audio_processing.dynamic_audio_url.split("/")[-1],
-            #         expiration=8 * 3600,  # 8 hour
-            #     )
-
             smooth_audio_url = audio_processing.smooth_audio_url
-            # if audio_processing.smooth_audio_url:
-            #     smooth_audio_url = await self.s3_client.get_presigned_url(
-            #         bucket="ahargunyllib-s3-testing",
-            #         file_name=audio_processing.smooth_audio_url.split("/")[-1],
-            #         expiration=8 * 3600,  # 8 hour
-            #     )
 
             stage = 5
             if (
@@ -468,28 +448,8 @@ class AudioProcessingService:
             )
         # Generate presigned URLs for audio files
         standard_audio_url = audio_processing.standard_audio_url
-        # if audio_processing.standard_audio_url:
-        #     standard_audio_url = await self.s3_client.get_presigned_url(
-        #         bucket="ahargunyllib-s3-testing",
-        #         file_name=audio_processing.standard_audio_url.split("/")[-1],
-        #         expiration=8 * 3600,  # 8 hour
-        #     )
-
         dynamic_audio_url = audio_processing.dynamic_audio_url
-        # if audio_processing.dynamic_audio_url:
-        #     dynamic_audio_url = await self.s3_client.get_presigned_url(
-        #         bucket="ahargunyllib-s3-testing",
-        #         file_name=audio_processing.dynamic_audio_url.split("/")[-1],
-        #         expiration=8 * 3600,  # 8 hour
-        #     )
-
         smooth_audio_url = audio_processing.smooth_audio_url
-        # if audio_processing.smooth_audio_url:
-        #     smooth_audio_url = await self.s3_client.get_presigned_url(
-        #         bucket="ahargunyllib-s3-testing",
-        #         file_name=audio_processing.smooth_audio_url.split("/")[-1],
-        #         expiration=8 * 3600,  # 8 hour
-        #     )
 
         stage = 5
         if (
@@ -543,10 +503,15 @@ class AudioProcessingService:
         if not audio_processing:
             raise ValueError("Audio processing not found")
 
-        # Update the manual audio URL
-        audio_processing.manual_audio_url = (
-            "https://is3.cloudhost.id/ahargunyllib-s3-testing/manual.wav"
-        )
+        if req.manual_file:
+          # Upload manual file to S3
+          manual_file_data = await req.manual_file.read()
+          manual_file_content = BytesIO(manual_file_data)
+          manual_file_filename = f"{audio_processing.id}-manual.{req.manual_file.filename.split('.')[-1]}"  # type: ignore
+          manual_file_url = await self.s3_client.upload_file(
+              manual_file_content, manual_file_filename, "artylab.dev02"
+          )
+          audio_processing.manual_audio_url = manual_file_url
 
         # Save the updated audio processing
         await self.audio_processing_repository.update_audio_processing(audio_processing)
@@ -578,7 +543,7 @@ class AudioProcessingService:
         standard_file_content = BytesIO(standard_file_data)
         standard_file_filename = f"{audio_processing.id}-standard.{req.standard_file.filename.split('.')[-1]}"  # type: ignore
         standard_file_url = await self.s3_client.upload_file(
-            standard_file_content, standard_file_filename, "ahargunyllib-s3-testing"
+            standard_file_content, standard_file_filename, "artylab.dev02"
         )
         audio_processing.standard_audio_url = standard_file_url
         logger.info("Standard audio file uploaded to S3")
@@ -590,7 +555,7 @@ class AudioProcessingService:
             f"{audio_processing.id}-dynamic.{req.dynamic_file.filename.split('.')[-1]}"  # type: ignore
         )
         dynamic_file_url = await self.s3_client.upload_file(
-            dynamic_file_content, dynamic_file_filename, "ahargunyllib-s3-testing"
+            dynamic_file_content, dynamic_file_filename, "artylab.dev02"
         )
         audio_processing.dynamic_audio_url = dynamic_file_url
         logger.info("Dynamic audio file uploaded to S3")
@@ -602,7 +567,7 @@ class AudioProcessingService:
             f"{audio_processing.id}-smooth.{req.smooth_file.filename.split('.')[-1]}"  # type: ignore
         )
         smooth_file_url = await self.s3_client.upload_file(
-            smooth_file_content, smooth_file_filename, "ahargunyllib-s3-testing"
+            smooth_file_content, smooth_file_filename, "artylab.dev02"
         )
         audio_processing.smooth_audio_url = smooth_file_url
         logger.info("Smooth audio file uploaded to S3")
