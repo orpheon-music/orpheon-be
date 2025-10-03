@@ -118,19 +118,19 @@ async def lifespan(
           logger.error(f"ML Service connection error: {e}")
 
 
-    # Check S3 Bucket
-    try:
-        s3_service: S3Service = get_s3_client()  # type: ignore
+    # # Check S3 Bucket
+    # try:
+    #     s3_service: S3Service = get_s3_client()  # type: ignore
 
-        kwargs = {
-            "Bucket": "artylab.dev02",
-        }
+    #     kwargs = {
+    #         "Bucket": "artylab.dev02",
+    #     }
 
-        s3_service.client.head_bucket(**kwargs)
+    #     s3_service.client.head_bucket(**kwargs)
 
-        logger.info("S3 connection established")
-    except Exception as e:
-        logger.error(f"S3 connection error: {e}")
+    #     logger.info("S3 connection established")
+    # except Exception as e:
+    #     logger.error(f"S3 connection error: {e}")
 
     # Start background consumer
     consumer_task = asyncio.create_task(start_background_consumer())
