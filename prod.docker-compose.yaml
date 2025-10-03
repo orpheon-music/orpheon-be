@@ -1,16 +1,22 @@
 services:
-  watchtower:
-    image: containrrr/watchtower
+  reverse-proxy:
+    image: traefik:v3.1
     command:
-      - "--label-enable"
-      - "--interval"
-      - "30"
-      - "--rolling-restart"
+      - "--providers.docker"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - network
   server:
-    image: ahargunyllib/orpheon-be:latest
+    build: .
     labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.peaknflow-be.rule=Host(`api.orpheon.site`)"
+      - "traefik.http.routers.peaknflow-be.entrypoints=web"
       - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "8000:8000"
@@ -23,7 +29,7 @@ services:
   db:
     image: postgres:16.1-alpine
     ports:
-      - 5434:5432
+      - 5432:5432
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
