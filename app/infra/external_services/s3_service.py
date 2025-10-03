@@ -33,7 +33,6 @@ class S3Service:
             file_content,
             bucket,
             file_name,
-            ExtraArgs={"ACL": "public-read"},
         )
 
         return f"{self.endpoint_url}/{bucket}/{file_name}"
