@@ -15,8 +15,8 @@ services:
     build: .
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.peaknflow-be.rule=Host(`api.orpheon.site`)"
-      - "traefik.http.routers.peaknflow-be.entrypoints=web"
+      - "traefik.http.routers.orpheon-be.rule=Host(`api.orpheon.site`)"
+      - "traefik.http.routers.orpheon-be.entrypoints=web"
       - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "8000:8000"
