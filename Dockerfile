@@ -10,11 +10,7 @@ RUN uv sync --frozen --no-install-project
 
 COPY . .
 
-RUN uv run python -m grpc_tools.protoc \
--I proto \
---python_out=gen \
---grpc_python_out=gen \
-$(find proto -name "*.proto")
+RUN ./gen_protos.sh
 
 FROM python:3.13-slim AS production
 
