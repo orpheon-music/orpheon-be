@@ -10,8 +10,6 @@ RUN uv sync --frozen --no-install-project
 
 COPY . .
 
-RUN uv sync --frozen
-
 RUN uv run python -m grpc_tools.protoc \
 -I proto \
 --python_out=gen \
