@@ -508,7 +508,7 @@ async def upload_file(
     try:
         file_data = await file.read()
         file_content = BytesIO(file_data)
-        file_filename = f"uploads/{int(time.time())}-{file.filename}"
+        file_filename = f"{int(time.time())}-{file.filename}"
         bucket = "artylab.dev02"  # Assuming a fixed bucket for this example
 
         file_url = await s3_service.upload_file(file_content, file_filename, bucket)
