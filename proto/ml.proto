@@ -11,5 +11,8 @@ service MLService {
 message ProcessRequest {
   string audio_processing_id = 1;
   string voice_file_url = 2;
-  string reference_file_url = 3;
+  string instrument_file_url = 3;
+  string reference_file_url = 4;
+  bool is_denoise = 5;
+  bool is_autotune = 6;
 }

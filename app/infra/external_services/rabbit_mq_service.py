@@ -117,7 +117,7 @@ class RabbitMQService:
         if not self.exchange:
             raise RuntimeError("Exchange is not initialized. Call connect() first.")
 
-        message_body = { # type: ignore
+        message_body = {  # type: ignore
             "job_id": str(job_id),
             "action": "process",
             "priority": priority,
@@ -125,7 +125,7 @@ class RabbitMQService:
         }
 
         if additional_data:
-            message_body.update(additional_data) # type: ignore
+            message_body.update(additional_data)  # type: ignore
 
         message = Message(
             json.dumps(message_body).encode(),
@@ -210,7 +210,9 @@ class AsyncAudioConsumer:
                 audio_processing_id=str(job_id),
                 voice_file_url=voice_file_url,
                 reference_file_url=reference_file_url,
-                # TODO: handle optional instrument file, is_denoise, is_autotune
+                instrument_file_url=instrument_file_url,
+                is_denoise=is_denoise,
+                is_autotune=is_autotune,
             )
 
             if not is_processing_success:

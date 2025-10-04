@@ -57,7 +57,15 @@ class MLService:
                 self.stub = None
                 logger.info("gRPC client disconnected")
 
-    async def process(self, audio_processing_id: str, voice_file_url: str, reference_file_url: str) -> bool:
+    async def process(
+        self,
+        audio_processing_id: str,
+        voice_file_url: str,
+        instrument_file_url: str,
+        reference_file_url: str,
+        is_denoise: bool,
+        is_autotune: bool,
+    ) -> bool:
         if not self._is_connected() or not ml_pb2:
             logger.debug("gRPC not available, skipping job published notification")
             return False
@@ -66,7 +74,10 @@ class MLService:
             request = ml_pb2.ProcessRequest(
                 audio_processing_id=audio_processing_id,
                 voice_file_url=voice_file_url,
+                instrument_file_url=instrument_file_url,
                 reference_file_url=reference_file_url,
+                is_denoise=is_denoise,
+                is_autotune=is_autotune,
             )
 
             # Call with timeout
