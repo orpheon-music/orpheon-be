@@ -17,6 +17,8 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.orpheon-be.rule=Host(`api.orpheon.site`)"
       - "traefik.http.routers.orpheon-be.entrypoints=web"
+    ports:
+      - 8000:8000
     networks:
       - network
     restart: on-failure
