@@ -27,7 +27,7 @@ dependencies = [
     "grpcio>=1.74.0",
     "grpcio-tools>=1.74.0",
     "protobuf>=6.32.0",
-    "yt-dlp>=2025.8.27",
+    "yt-dlp", # always the latest version
     "certifi>=2025.8.3",
 ]
 
