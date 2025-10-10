@@ -326,7 +326,7 @@ async def get_audio_processing_by_id(
 )
 async def create_audio_processing(
     voice_file: Annotated[UploadFile, File()],
-    reference_url: Annotated[str, Form()],
+    reference_file: Annotated[UploadFile, File()],
     is_denoise: Annotated[bool, Form()],
     is_autotune: Annotated[bool, Form()],
     instrument_file: Annotated[UploadFile | None, File()] = None,
@@ -338,7 +338,7 @@ async def create_audio_processing(
     req = CreateAudioProcessingRequest(
         voice_file=voice_file,
         instrument_file=instrument_file,
-        reference_url=reference_url,
+        reference_file=reference_file,
         user_id=current_user.id,
         is_denoise=is_denoise,
         is_autotune=is_autotune,
