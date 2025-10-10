@@ -6,6 +6,7 @@ from typing import Annotated, Literal
 
 import redis
 import uvicorn
+import yt_dlp
 from fastapi import (
     Depends,
     FastAPI,
@@ -520,6 +521,52 @@ async def upload_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to upload file to S3.",
         ) from e
+
+
+@app.post(
+    "/api/v1/test-download-yt",
+    tags=["Test"],
+    summary="Test Download YouTube Audio",
+    status_code=status.HTTP_200_OK,
+)
+async def test_download_yt(
+    url: str,
+):
+    try:
+        await asyncio.to_thread(download_audio, url)
+        return
+    except Exception as e:
+        print(f"Error downloading audio: {e}")
+        raise HTTPException(
+            status_code=400, detail="Failed to download audio from YouTube."
+        ) from e
+
+
+def download_audio(url: str, output_dir: str = "/tmp") -> str:
+    params = {  # type: ignore
+        "format": "bestaudio/best",
+        "noplaylist": True,
+        "outtmpl": f"{output_dir}/%(title)s-%(id)s.%(ext)s",
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            }
+        ],
+        "quiet": False,
+        "no_warnings": False,
+        "nocheckcertificate": True,
+        "ignoreerrors": False,
+        "default_search": "auto",
+        "source_address": "0.0.0.0",  # Bind to ipv4 since ipv6 might cause issues
+    }
+
+    with yt_dlp.YoutubeDL(params) as ydl:  # type: ignore
+        info = ydl.extract_info(url, download=True)
+        # Get the actual file path of the post-processed file
+        file_path = info["requested_downloads"][0]["filepath"]  # type: ignore
+        return file_path  # type: ignore
 
 
 def main():
