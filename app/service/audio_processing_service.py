@@ -573,39 +573,9 @@ class AudioProcessingService:
         if not audio_processing:
             raise ValueError("Audio processing not found")
 
-        # Upload standard file to S3
-        standard_file_data = await req.standard_file.read()
-        standard_file_content = BytesIO(standard_file_data)
-        standard_file_filename = f"{audio_processing.id}-standard.{req.standard_file.filename.split('.')[-1]}"  # type: ignore
-        standard_file_url = await self.s3_client.upload_file(
-            standard_file_content, standard_file_filename, "artylab.dev02"
-        )
-        audio_processing.standard_audio_url = standard_file_url
-        logger.info("Standard audio file uploaded to S3")
-
-        # Upload dynamic file to S3
-        dynamic_file_data = await req.dynamic_file.read()
-        dynamic_file_content = BytesIO(dynamic_file_data)
-        dynamic_file_filename = (
-            f"{audio_processing.id}-dynamic.{req.dynamic_file.filename.split('.')[-1]}"  # type: ignore
-        )
-        dynamic_file_url = await self.s3_client.upload_file(
-            dynamic_file_content, dynamic_file_filename, "artylab.dev02"
-        )
-        audio_processing.dynamic_audio_url = dynamic_file_url
-        logger.info("Dynamic audio file uploaded to S3")
-
-        # Upload smooth file to S3
-        smooth_file_data = await req.smooth_file.read()
-        smooth_file_content = BytesIO(smooth_file_data)
-        smooth_file_filename = (
-            f"{audio_processing.id}-smooth.{req.smooth_file.filename.split('.')[-1]}"  # type: ignore
-        )
-        smooth_file_url = await self.s3_client.upload_file(
-            smooth_file_content, smooth_file_filename, "artylab.dev02"
-        )
-        audio_processing.smooth_audio_url = smooth_file_url
-        logger.info("Smooth audio file uploaded to S3")
+        audio_processing.standard_audio_url = req.standard_file
+        audio_processing.dynamic_audio_url = req.dynamic_file
+        audio_processing.smooth_audio_url = req.smooth_file
 
         await self.audio_processing_repository.update_audio_processing(audio_processing)
         logger.info("Audio processing record updated successfully")

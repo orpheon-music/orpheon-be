@@ -392,18 +392,18 @@ async def update_audio_processing(
 )
 async def update_audio_processing_result_files(
     audio_processing_id: UUID5,
-    standard_file: Annotated[UploadFile, File()],
-    dynamic_file: Annotated[UploadFile, File()],
-    smooth_file: Annotated[UploadFile, File()],
+    standard_file_url: Annotated[str, Form()],
+    dynamic_file_url: Annotated[str, Form()],
+    smooth_file_url: Annotated[str, Form()],
     audio_processing_svc: AudioProcessingService = Depends(
         get_audio_processing_service
     ),
     # _api_key_check: Response = Depends(api_key_middleware),
 ):
     req = UpdateAudioProcessingResultRequest(
-        standard_file=standard_file,
-        dynamic_file=dynamic_file,
-        smooth_file=smooth_file,
+        standard_file=standard_file_url,
+        dynamic_file=dynamic_file_url,
+        smooth_file=smooth_file_url,
     )
 
     params = UpdateAudioProcessingResultParams(

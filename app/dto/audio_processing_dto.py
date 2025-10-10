@@ -54,9 +54,9 @@ class UpdateAudioProcessingResultParams(BaseModel):
     audio_processing_id: UUID
 
 class UpdateAudioProcessingResultRequest(BaseModel):
-    standard_file: Annotated[UploadFile, File()]
-    dynamic_file: Annotated[UploadFile, File()]
-    smooth_file: Annotated[UploadFile, File()]
+    standard_file: Annotated[str, Form()]
+    dynamic_file: Annotated[str, Form()]
+    smooth_file: Annotated[str, Form()]
 
 class UpdateAudioProcessingStageParams(BaseModel):
     audio_processing_id: UUID
