@@ -81,7 +81,7 @@ class MLService:
             )
 
             # Call with timeout
-            response = await asyncio.wait_for(self.stub.Process(request))
+            response = await asyncio.wait_for(self.stub.Process(request), timeout=5400.0)
 
             logger.info(f"gRPC process response: {response}")
             return True
