@@ -288,13 +288,13 @@ async def check_session(
 )
 async def get_audio_processing_library(
     query: Annotated[GetAudioProcessingsQuery, Depends()],
-    current_user: UserResponse = Depends(get_current_user),
+    # current_user: UserResponse = Depends(get_current_user),
     audio_processing_svc: AudioProcessingService = Depends(
         get_audio_processing_service
     ),
 ):
     """Fetch audio processing library with pagination."""
-    return await audio_processing_svc.get_library(query, current_user.id)
+    return await audio_processing_svc.get_library(query, None)
 
 
 @app.get(
@@ -305,7 +305,7 @@ async def get_audio_processing_library(
 )
 async def get_audio_processing_by_id(
     audio_processing_id: UUID5,
-    _current_user: UserResponse = Depends(get_current_user),
+    # _current_user: UserResponse = Depends(get_current_user),
     audio_processing_svc: AudioProcessingService = Depends(
         get_audio_processing_service
     ),
@@ -331,7 +331,7 @@ async def create_audio_processing(
     is_denoise: Annotated[bool, Form()],
     is_autotune: Annotated[bool, Form()],
     instrument_file: Annotated[UploadFile | None, File()] = None,
-    current_user: UserResponse = Depends(get_current_user),
+    # current_user: UserResponse = Depends(get_current_user),
     audio_processing_svc: AudioProcessingService = Depends(
         get_audio_processing_service
     ),
@@ -340,7 +340,7 @@ async def create_audio_processing(
         voice_file=voice_file,
         instrument_file=instrument_file,
         reference_file=reference_file,
-        user_id=current_user.id,
+        user_id=None,
         is_denoise=is_denoise,
         is_autotune=is_autotune,
     )
@@ -357,7 +357,7 @@ async def update_audio_processing(
     audio_processing_id: UUID5,
     manual_file: Annotated[UploadFile | None, File()] = None,
     type: Annotated[Literal["standard", "dynamic", "smooth"] | None, File()] = None,
-    _current_user: UserResponse = Depends(get_current_user),
+    # _current_user: UserResponse = Depends(get_current_user),
     audio_processing_svc: AudioProcessingService = Depends(
         get_audio_processing_service
     ),

@@ -35,7 +35,7 @@ class CreateAudioProcessingRequest(BaseModel):
     is_denoise: Annotated[bool, Form()]
     is_autotune: Annotated[bool, Form()]
 
-    user_id: UUID
+    user_id: UUID | None
 
 
 class CreateAudioProcessingResponse(BaseModel):

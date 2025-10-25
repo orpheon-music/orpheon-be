@@ -3,7 +3,7 @@ import logging
 import uuid
 from datetime import datetime
 from io import BytesIO
-from uuid import uuid5
+from uuid import uuid5, uuid4
 
 import mutagen.flac as mutagenFLAC
 import mutagen.mp3 as mutagenMP3
@@ -251,9 +251,14 @@ class AudioProcessingService:
             f"Creating audio processing with ID: {id}, Name: {name}, Size: {size}, Duration: {duration}, Format: {format}, Bitrate: {bitrate}"  # type: ignore
         )
 
+        user_id = req.user_id
+        # TODO: Remove this
+        if user_id is None:
+          user_id = uuid4()
+
         audio_processing = AudioProcessing(
             id=id,
-            user_id=req.user_id,
+            user_id=user_id,
             name=name,
             size=size,
             duration=duration,
@@ -287,7 +292,6 @@ class AudioProcessingService:
 
         task = asyncio.create_task(
             self._handle_audio_processing(
-                req.user_id,
                 voice_bytes,
                 instrument_bytes,
                 reference_bytes,
@@ -328,7 +332,6 @@ class AudioProcessingService:
 
     async def _handle_audio_processing(
         self,
-        user_id: uuid.UUID,
         voice_bytes: bytes,
         instrument_bytes: bytes | None,
         reference_bytes: bytes,
@@ -390,7 +393,7 @@ class AudioProcessingService:
         )
 
     async def get_library(
-        self, query: GetAudioProcessingsQuery, user_id: uuid.UUID
+        self, query: GetAudioProcessingsQuery, user_id: uuid.UUID | None
     ) -> GetAudioProcessingsResponse:
         """Get audio processing library"""
         audio_processings = (
