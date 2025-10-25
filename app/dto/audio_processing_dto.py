@@ -10,7 +10,7 @@ from app.dto.pagination_dto import PaginationResponse
 
 class AudioProcessingResponse(BaseModel):
     id: UUID
-    user_id: UUID
+    user_id: UUID | None
 
     name: str
     size: int
