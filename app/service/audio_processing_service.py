@@ -3,7 +3,7 @@ import logging
 import uuid
 from datetime import datetime
 from io import BytesIO
-from uuid import uuid5, uuid4
+from uuid import uuid4, uuid5
 
 import mutagen.flac as mutagenFLAC
 import mutagen.mp3 as mutagenMP3
@@ -254,7 +254,7 @@ class AudioProcessingService:
         user_id = req.user_id
         # TODO: Remove this
         if user_id is None:
-          user_id = uuid4()
+            user_id = uuid4()
 
         audio_processing = AudioProcessing(
             id=id,
