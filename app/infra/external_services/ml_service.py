@@ -43,19 +43,23 @@ class MLService:
                 logger.warning(
                     "gRPC connection timeout - continuing without gRPC notifications"
                 )
-                await self.disconnect()
+                await self._cleanup_connection()
             except Exception as e:
                 logger.warning(f"Failed to connect to gRPC server: {e}")
-                await self.disconnect()
+                await self._cleanup_connection()
+
+    async def _cleanup_connection(self):
+      """Internal cleanup without lock (assumes lock is already held)"""
+      if self.channel:
+          await self.channel.close()
+      self.channel = None
+      self.stub = None
 
     async def disconnect(self):
         """Close connection to the ML service"""
         async with self._connection_lock:
-            if self.channel:
-                await self.channel.close()
-                self.channel = None
-                self.stub = None
-                logger.info("gRPC client disconnected")
+            await self._cleanup_connection()
+            logger.info("gRPC client disconnected")
 
     async def process(
         self,
