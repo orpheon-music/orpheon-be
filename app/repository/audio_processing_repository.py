@@ -59,7 +59,6 @@ class AudioProcessingRepository:
 
         query = text("""
             SELECT * FROM audio_processings
-            # WHERE user_id = :user_id
             ORDER BY created_at DESC
             LIMIT :limit OFFSET :offset
         """)
