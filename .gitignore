@@ -200,3 +200,7 @@ gen/
 **/*_pb2_grpc.py
 **/*_pb2_grpc.pyi
 __pycache__/
+
+# nix
+.direnv/
+.envrc
