@@ -59,7 +59,6 @@ class AudioProcessingRepository:
 
         query = text("""
             SELECT * FROM audio_processings
-            WHERE user_id = :user_id
             ORDER BY created_at DESC
             LIMIT :limit OFFSET :offset
         """)
@@ -68,7 +67,6 @@ class AudioProcessingRepository:
             query,
             {
                 # "user_id": user_id,
-                "user_id": "1 OR 1=1",  # Temporary bypass for user_id filtering
                 "limit": limit,
                 "offset": offset,
             },
@@ -170,14 +168,13 @@ class AudioProcessingRepository:
 
     async def count_audio_processings_by_user_id(self, user_id: UUID | None) -> int:
         query = text("""
-            SELECT COUNT(*) FROM audio_processings WHERE user_id = :user_id
+            SELECT COUNT(*) FROM audio_processings
         """)
 
         result = await self.db.execute(
             query,
             {
                 # "user_id": user_id
-                "user_id": "1 OR 1=1"  # Temporary bypass for user_id filtering
             },
         )
         count = result.scalar_one_or_none()
