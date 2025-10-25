@@ -173,10 +173,13 @@ class AudioProcessingRepository:
             SELECT COUNT(*) FROM audio_processings WHERE user_id = :user_id
         """)
 
-        result = await self.db.execute(query, {
-            # "user_id": user_id
-            "user_id": "1 OR 1=1"  # Temporary bypass for user_id filtering
-        })
+        result = await self.db.execute(
+            query,
+            {
+                # "user_id": user_id
+                "user_id": "1 OR 1=1"  # Temporary bypass for user_id filtering
+            },
+        )
         count = result.scalar_one_or_none()
         return count if count is not None else 0
 
@@ -185,7 +188,9 @@ class AudioProcessingRepository:
             INSERT INTO audio_processings (
                 id, user_id, name, size, duration, format, bitrate, created_at, updated_at
             ) VALUES (
-                :id, :user_id, :name, :size, :duration, :format, :bitrate, NOW(), NOW()
+                :id, (
+                     SELECT id FROM users LIMIT 1
+                ), :name, :size, :duration, :format, :bitrate, NOW(), NOW()
             )
         """)
 
@@ -193,7 +198,7 @@ class AudioProcessingRepository:
             query,
             {
                 "id": audio_processing.id,
-                "user_id": audio_processing.user_id,
+                # "user_id": audio_processing.user_id,
                 "name": audio_processing.name,
                 "size": audio_processing.size,
                 "duration": audio_processing.duration,

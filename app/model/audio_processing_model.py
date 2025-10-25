@@ -25,7 +25,7 @@ class AudioProcessing:
     def __init__(
         self,
         id: UUID,
-        user_id: UUID,
+        user_id: UUID | None,
         name: str,
         size: int,
         duration: int,

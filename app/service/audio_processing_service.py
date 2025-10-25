@@ -251,14 +251,9 @@ class AudioProcessingService:
             f"Creating audio processing with ID: {id}, Name: {name}, Size: {size}, Duration: {duration}, Format: {format}, Bitrate: {bitrate}"  # type: ignore
         )
 
-        user_id = req.user_id
-        # TODO: Remove this
-        if user_id is None:
-            user_id = uuid4()
-
         audio_processing = AudioProcessing(
             id=id,
-            user_id=user_id,
+            user_id=req.user_id,
             name=name,
             size=size,
             duration=duration,
