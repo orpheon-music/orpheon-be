@@ -464,7 +464,7 @@ async def download_file(
             )
 
         bucket = "artylab.dev02"  # Assuming a fixed bucket for this example
-        file_name = url.split("/")[-1]  # Extract file name from URL
+        file_name = "/".join(url.split("/")[4:])  # ambil semua setelah / ke-3  # Extract file name from URL
 
         file_content = await s3_service.download_file(bucket, file_name)
         if not file_content:
